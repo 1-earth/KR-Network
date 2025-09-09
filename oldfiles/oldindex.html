@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile Editor</title>
+  <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css" rel="stylesheet"/>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-storage-compat.js"></script>
+  
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 1rem;
+      background: #000000;
+    }
+    .profile-section, .blocks-section {
+      background: white;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    .block {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .block img {
+      height: 40px;
+      width: 40px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: #EFEFEF;
+      padding: 1rem;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 400px;
+    }
+    input, textarea {
+      width: 100%;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      padding: 0.5rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #999;
+    }
+    .avatar-preview {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+      margin: auto;
+    }
+    .auth-section {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .krlogo{
+      max-width: 100px;
+    }
+
+    .background-text{
+      color: white;
+    }
+
+    .file-upload-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.file-upload-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+.file-upload-button {
+    padding: 6px 12px;
+    background: #545454;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.file-upload-name {
+    margin-left: 8px;
+}
+
+.cente-align {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: fit-content; /* Ensures the element doesn't stretch full width */
+}
+  </style>
+</head>
+<body>
+
+  <img class="krlogo" src="KRSPIN.gif" alt="Computer man" style="width:48px;height:48px;">
+<div class="auth-section">
+  <button id="login-btn">Login with Google</button>
+  <button id="logout-btn" style="display: none">Logout</button>
+  <p class="background-text" id="user-info"></p>
+</div>
+
+<!-- existing HTML below will stay -->
+<div class="profile-section">
+  <h2 class="center-align">EDIT</h2>
+  <img id="avatar-preview" class="avatar-preview" src="default-avatar.png" alt="Avatar" />
+  
+  <div class="file-upload-wrapper">
+    <button class="file-upload-button">Change Profile Picture</button>
+    <span class="file-upload-name"> </span>
+    <input type="file" id="avatar-upload" accept="image/*" class="file-upload-input">
+  </div>
+
+
+
+  <input type="text" id="profile-title" placeholder="Profile Title">
+  <textarea id="bio" rows="3" placeholder="Add your bio..."></textarea>
+  <input type="url" id="instagram" placeholder="Instagram URL">
+  <input type="url" id="youtube" placeholder="YouTube URL">
+  <input type="url" id="tiktok" placeholder="TikTok URL">
+  <button id="save-profile">Save Profile</button>
+</div>
+
+<div class="blocks-section">
+  <h2>Your Links</h2>
+  <div id="blocks-container"></div>
+  <button id="add-block">+ Add Block</button>
+</div>
+
+<div class="modal" id="block-modal">
+  <div class="modal-content">
+    <h3 id="modal-title">Add Block</h3>
+    <input type="text" id="block-title" placeholder="Block Title">
+    <input type="text" id="block-description" placeholder="Block Description">
+    <input type="url" id="block-link" placeholder="https://example.com">
+    <input type="file" id="block-img" accept="image/*">
+    <button id="save-block">Save Block</button>
+    <button class="secondary" id="cancel-block">Cancel</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
+<script type="module" src="firebase-setup.js"></script>
+<script type="module" src="app.js"></script>
+<script>
+  document.getElementById('avatar-upload').addEventListener('change', function(e) {
+    var fileName = e.target.files[0] ? e.target.files[0].name : "No file chosen";
+    document.querySelector('.file-upload-name').textContent = fileName;
+});
+
+
+</script>
+</body>
+</html>

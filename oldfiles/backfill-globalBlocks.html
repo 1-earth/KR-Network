@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Back-fill globalBlocks</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#222;color:#eee;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0}
+    button{padding:12px 24px;font-size:18px;border:none;border-radius:8px;cursor:pointer;background:#28a745;color:#fff}
+    #log{margin-top:20px;max-width:600px;white-space:pre-wrap;background:#111;padding:12px;border-radius:6px;font-size:14px;line-height:1.4}
+  </style>
+</head>
+<body>
+  <h1>Back-fill DISCOVER feed</h1>
+  <p>This copies any existing profile blocks that don't yet have a globalId
+     into the <code>globalBlocks</code> collection.</p>
+  <button id="run">Back-fill DISCOVER</button>
+  <div id="log"></div>
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider }
+       from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+import { getFirestore,
+         collection, getDocs, doc, updateDoc, setDoc }
+       from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+/* ---  adjust if config ever changes  --- */
+const firebaseConfig = {
+  apiKey: "AIzaSyBWYRLFIudpqYdxCZXjiT7nGoJScKcwPv0",
+  authDomain: "kr-net-23.firebaseapp.com",
+  projectId: "kr-net-23",
+  storageBucket: "kr-net-23.firebasestorage.app",
+  messagingSenderId: "466657657759",
+  appId: "1:466657657759:web:83c5c245d1736b48eab3aa",
+  measurementId: "G-Z0XEDT1G9P"
+};
+/* --------------------------------------- */
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const log = msg => { console.log(msg); out.textContent += msg + "\n"; };
+const out = document.getElementById("log");
+const btn = document.getElementById("run");
+
+function globalId(ownerEmail, createdAt) {
+  const safe = ownerEmail.replace(/[^a-zA-Z0-9]/g,"_");
+  return `${safe}_${new Date(createdAt).getTime()}`;
+}
+
+btn.onclick = async () => {
+  try {
+    btn.disabled = true;
+    if (!auth.currentUser) {
+      log("Opening Google sign-in …");
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      log(`Signed in as ${auth.currentUser.email}`);
+    }
+
+    const userSnap = await getDocs(collection(db,"users"));
+    log(`Scanning ${userSnap.size} user documents …`);
+
+    let totalBlocks = 0, inserted = 0;
+
+    for (const userDoc of userSnap.docs) {
+      const data = userDoc.data();
+      if (!Array.isArray(data.blocks) || data.blocks.length === 0) continue;
+
+      const newBlocks = data.blocks.map(b => {
+        totalBlocks++;
+
+        // Ensure each block has a globalId
+        let id = b.globalId;
+        if (!id) {
+          id = globalId(userDoc.id, b.createdAt || Date.now());
+          b.globalId = id;
+          inserted++; // only count when we add a missing id
+        }
+
+        // Up-sert the parent document so it always exists / is updated
+        setDoc(doc(db, "globalBlocks", id), {
+          owner     : userDoc.id,
+          createdAt : b.createdAt || new Date().toISOString(),
+          title     : b.title  || '',
+          desc      : b.desc   || '',
+          link      : b.link   || '',
+          icon      : b.icon   || '',
+          type      : b.type   || 'default',
+          slides    : b.slides || [],
+          upvotes   : 0,
+          downvotes : 0,
+          score     : 0
+        }, { merge: true });
+
+        return b;
+      });
+
+      // write back if we added any ids
+      await updateDoc(doc(db,"users",userDoc.id), { blocks: newBlocks });
+      log(`✔ processed ${userDoc.id}`);
+    }
+
+    log("— Done —");
+    log(`Blocks checked : ${totalBlocks}`);
+    log(`Blocks inserted: ${inserted}`);
+  } catch(err) {
+    console.error(err);
+    log("❌ "+err.message);
+  } finally {
+    btn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>

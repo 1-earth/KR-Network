@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KR NETWORK</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="static/img/KRICON.png" type="image/png">
+</head>
+
+<body>
+    <a href="/KANGRECORDS/index.html"></a>
+
+    </a>
+    <div class="headerbar">
+
+        <!-- <h2>KR Community Network</h2>
+        <strong>Instructions:</strong>
+        <ul>
+            <li>Hover over a node to preview details.</li>
+            <li>Click a node to view connections.</li>
+            <li>Use mouse scroll or drag to zoom and pan.</li>
+        </ul> -->
+    </div>
+
+    <div class="controls-container">
+        <!-- Search Bar -->
+        <img class="filter-button-icon2" src="static/img/search.png" alt="icon">
+        <input type="text" id="search-bar" placeholder="Search..." />
+
+        <!-- Filter Button -->
+        <button id="filter-button" onclick="toggleFilterMenu()">
+            <img class="filter-button-icon" src="static/img/options.png" alt="icon">
+            <!-- Filter by Practice -->
+        </button>
+
+        <!-- Filter Menu -->
+        <div id="filter-menu" class="filter-menu">
+            <p class="practices-header">Select Practices!</p>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="3D" onchange="applyPracticeFilter()" /> 3D
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Architecture" onchange="applyPracticeFilter()" />
+                Architecture
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Community Engagement" onchange="applyPracticeFilter()" />
+                Community Engagement
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Computing" onchange="applyPracticeFilter()" />
+                Computing
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Graphic Design" onchange="applyPracticeFilter()" />
+                Graphic Design
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Fashion" onchange="applyPracticeFilter()" />
+                Fashion
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Film" onchange="applyPracticeFilter()" />
+                Film
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Fine Art" onchange="applyPracticeFilter()" />
+                Fine Art
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Image" onchange="applyPracticeFilter()" />
+                Image
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Jewelry" onchange="applyPracticeFilter()" />
+                Jewelry
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Music" onchange="applyPracticeFilter()" />
+                Music
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Performance Arts" onchange="applyPracticeFilter()" />
+                Performance Arts
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Printing" onchange="applyPracticeFilter()" />
+                Printing
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Product Design" onchange="applyPracticeFilter()" />
+                Product Design
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Publication" onchange="applyPracticeFilter()" />
+                Publication
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="Set Design" onchange="applyPracticeFilter()" />
+                Set Design
+            </div>
+        </div>
+
+        <!-- Clear Filters Button -->
+        <!-- <button onclick="clearFilters()">Clear Filters</button> -->
+
+
+    </div>
+
+    <nav class="bottom-navbar">
+        <div class="nav-item">
+            <img src="static/img/networkicon.png" class="nav-icon" alt="Network">
+            <!-- <span class="nav-label">Home</span> -->
+        </div>
+
+        <div class="nav-item">
+            <img src="static/img/collabicon.png" class="nav-icon" alt="Collab">
+            <!-- <span class="nav-label">Search</span> -->
+        </div>
+
+        <a href="profile.html" style="text-decoration:none;">
+          <div class="nav-item">
+              <img src="static/img/profileicon.png" class="nav-icon" alt="Join">
+              <!-- <span class="nav-label">Profile</span> -->
+          </div>
+        </a>
+    </nav>
+
+
+
+    <div class="center-container">
+
+        <img src="static/img/KRSPIN.gif" alt="Centered Image" class="centered-image">
+
+    </div>
+
+    <div id="popup-container">
+        <div id="popupselection" class="popup">
+            <div class="popup-button-container">
+                <button onclick="closePopup()" class="icon-button" style="margin-top: 0px">
+                    <img src="static/img/community.svg" alt="Community Icon" class="button-icon" />
+                    VIEW COMMUNITY</button>
+                <!-- <button class="icon-button23" style="margin-top: 0px">
+                    <img src="static/img/Share.png" alt="Community Icon" class="button-icon"/>
+                </button> -->
+                <br />
+            </div>
+
+
+            <img id="popup-image" src="" alt="Profile Image" />
+            <h2 id="popup-title"></h2>
+
+            <!-- Social Icons -->
+            <div class="social-icons">
+                <a id="social1" href="#" target="_blank">
+                    <img src="static/img/instagram.svg" alt="Instagram" class="social-icon" />
+                </a>
+                <a id="social2" href="#" target="_blank">
+                    <img src="static/img/youtube.svg" alt="YouTube" class="social-icon" />
+                </a>
+                <a id="social3" href="#" target="_blank">
+                    <img src="static/img/tiktok.svg" alt="TikTok" class="social-icon" />
+                </a>
+            </div>
+            <!-- User desc. -->
+            <p class="avenir greytext" id="popup-description"></p>
+
+            <!-- (S) Redirected Link Section -->
+            <a id="popup-link-url1" href="#" target="_blank" class="redirect-link-anchor">
+                <div class="redirect-link avenir">
+                    <img src="placeholder.jpg" id="popup-link-img1" alt="Link Image" class="link-image" />
+                    <div class="link-text">
+                        <p class="link-title" id="popup-link-title1">Link Title</p>
+                        <p class="link-description " id="popup-link-description1">
+                            Short description of the link.
+                        </p>
+                    </div>
+                    <img class="share-icon" src="/KANGRECORDS/img/dots.svg" alt="Share Icon" />
+                </div>
+            </a>
+
+            <!-- (S) Redirected Link Section -->
+            <a id="popup-link-url2" href="#" target="_blank" class="redirect-link-anchor">
+                <div class="redirect-link avenir">
+                    <img src="placeholder.jpg" id="popup-link-img2" alt="Link Image" class="link-image" />
+                    <div class="link-text">
+                        <p class="link-title" id="popup-link-title2">Link Title</p>
+                        <p class="link-description" id="popup-link-description2">
+                            Short description of the link.
+                        </p>
+                    </div>
+                    <img class="share-icon" src="/KANGRECORDS/img/dots.svg" alt="Share Icon" />
+                </div>
+            </a>
+
+            <!-- (L) Redirected Link Section -->
+            <a id="popup-link-url3" href="#" target="_blank" class="redirect-link-anchor">
+                <div class="redirect-link-L avenir">
+                    <img src="https://www.1-earth.world/KANGRECORDS/img/TRTCOVERcompress.jpg" id="popup-link-img3"
+                        alt="Link Image" class="link-image-L" />
+                    <div class="link-content-L">
+                        <div class="link-text-L">
+                            <p class="link-title-L" id="popup-link-title3">
+                                The Raw Tapes Vol.1
+                            </p>
+                            <p class="link-description-L" id="popup-link-description3">
+                                KR Collective Album
+                            </p>
+                        </div>
+                        <img class="share-icon" src="/KANGRECORDS/img/dots.svg" alt="Share Icon" />
+                    </div>
+                </div>
+            </a>
+
+            <!-- (S) Redirected Link Section -->
+            <a id="popup-link-url4" href="#" target="_blank" class="redirect-link-anchor">
+                <div class="redirect-link avenir">
+                    <img src="https://www.1-earth.world/KANGRECORDS/img/KRICON.png" id="popup-link-img4"
+                        alt="Link Image" class="link-image" />
+                    <div class="link-text">
+                        <p class="link-title" id="popup-link-title4">KANG RECORDS</p>
+                        <p class="link-description" id="popup-link-description4">
+                            Community Platform for Artists
+                        </p>
+                    </div>
+                    <img class="share-icon" src="/KANGRECORDS/img/dots.svg" alt="Share Icon" />
+                </div>
+            </a>
+
+            <!-- ( ) SPACER -->
+            <div class="popup-spacer">
+                <div class="popup-spacer-line"></div>
+            </div>
+
+            <!-- ( ) FEATURED SCROLLCHANNEL -->
+            <div class="redirect-link-featurescroll">
+                <h3 class="feature-title">FEATURED:</h3>
+
+                <div class="feature-tile-container avenir">
+                    <a id="popup-feature-link-url1" href="#" target="_blank" class="feature-link-anchor">
+                        <div class="feature-tile">
+                            <img src="placeholder.jpg" id="popup-feature-link-img1" alt="Link Image"
+                                class="link-image-L" />
+                            <div class="link-content-L">
+                                <div class="link-text-L">
+                                    <p class="link-title-L" id="popup-feature-link-title1">
+                                        Link Title
+                                    </p>
+                                    <p class="link-description-L" id="popup-feature-link-description1">
+                                        Short description of the link.
+                                    </p>
+                                </div>
+                                <img class="share-icon" src="/KANGRECORDS/img/dots.svg" alt="Share Icon" />
+                            </div>
+                        </div>
+                    </a>
+
+                    <a id="popup-feature-link-url2" href="#" target="_blank" class="feature-link-anchor">
+                        <div class="feature-tile">
+                            <img src="placeholder.jpg" id="popup-feature-link-img2" alt="Link Image"
+                                class="link-image-L" />
+                            <div class="link-content-L">
+                                <div class="link-text-L">
+                                    <p class="link-title-L" id="popup-feature-link-title2">
+                                        Link Title
+                                    </p>
+                                    <p class="link-description-L" id="popup-feature-link-description2">
+                                        Short description of the link.
+                                    </p>
+                                </div>
+                                <img class="share-icon" src="/KANGRECORDS/img/dots.svg" alt="Share Icon" />
+                            </div>
+                        </div>
+                    </a>
+
+                    <a id="popup-feature-link-url3" href="#" target="_blank" class="feature-link-anchor">
+                        <div class="feature-tile">
+                            <img src="placeholder.jpg" id="popup-feature-link-img3" alt="Link Image"
+                                class="link-image-L" />
+                            <div class="link-content-L">
+                                <div class="link-text-L">
+                                    <p class="link-title-L" id="popup-feature-link-title3">
+                                        Link Title
+                                    </p>
+                                    <p class="link-description-L" id="popup-feature-link-description3">
+                                        Short description of the link.
+                                    </p>
+                                </div>
+                                <img class="share-icon" src="/KANGRECORDS/img/dots.svg" alt="Share Icon" />
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ( ) SPACER -->
+            <div class="popup-spacer">
+                <div class="popup-spacer-line"></div>
+            </div>
+
+            <!-- (S) Redirected Link Section -->
+            <a id="popup-link-url5" href="#" target="_blank">
+                <div class="redirect-link avenir">
+                    <img src="placeholder.jpg" id="popup-link-img5" alt="Link Image" class="link-image" />
+                    <div class="link-text">
+                        <p class="link-title" id="popup-link-title5">Link Title</p>
+                        <p class="link-description" id="popup-link-description5">
+                            Short description of the link.
+                        </p>
+                    </div>
+                    <img class="share-icon" src="/KANGRECORDS/img/dots.svg" alt="Share Icon" />
+                </div>
+            </a>
+
+            <button id="buttonscrollanchor" onclick="closePopup()" class="icon-button altButton"
+                style="margin-top: 0px">
+                <img src="KRICON.png" alt="Community Icon" class="button-icon" />
+                JOIN USER ON KR
+            </button>
+                <br />
+
+            <div class="popup-footer">
+                <p>Powered by 🌐 <a href="/index.html" target="_blank">1EARTH</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="popup-background" style="display: flex;">
+
+        <button onclick="closePopup()" class="icon-button popup-background-button" style="margin-top: 0px">
+            <img src="community.svg" alt="Community Icon" class="button-icon" />
+            VIEW COMMUNITY</button>
+    </div>
+
+    <!-- <div class="join-KR-button">
+        <button class="icon-button2" style="margin-top: 0px">
+            <img src="static/img/KRCOMMUNITYLOGO.png" alt="Community Icon" class="button-icon" />
+            JOIN KR</button>
+    </div> -->
+
+    <svg></svg>
+
+    <script>
+        // Your Google Spreadsheet ID
+        const SPREADSHEET_ID = "13GezfXpZX5-09vY3o9nDg9JZ59lfAkrRt3RSv7G-oGM";
+        // API Key (replace with your actual API key)
+        const API_KEY = "AIzaSyB5b_wv4yQMDoHTCDDZydcbYxLZ5ISrGbQ";
+        // URL to fetch the data
+        const API_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Sheet1?key=${API_KEY}`;
+
+        // Declare profiles in the outer scope
+        let profiles = {};
+
+
+        let link; // Declare link globally
+        let node; // Declare node globally
+
+        async function fetchProfiles() {
+            try {
+                // Fetch data from the Google Sheets API
+                const response = await fetch(API_URL);
+                const data = await response.json();
+
+                // Process the rows into the desired format
+                const rows = data.values;
+                const headers = rows[0]; // First row is headers
+
+                // Iterate through the rest of the rows
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    const username = row[0]; // Column 1: username
+
+                    profiles[username] = {
+                        title: row[1],                  // Column 2: user title
+                        img: row[2],                   // Column 3: avatar url
+                        instagram: row[3],             // Column 4: Instagram url
+                        youtube: row[4],               // Column 5: YouTube url
+                        tiktok: row[5],                // Column 6: TikTok url
+                        description: row[6],           // Column 7: user description
+                        popuplinkurl1: row[7],         // Column 8: link url 1
+
+                        popuplinktitle1: row[8],       // Column 9: link title 1
+                        popuplinkdescription1: row[9], // Column 10: link description 1
+                        popuplinkimg1: row[10],        // Column 11: link image 1
+                        popuplinkurl2: row[11],        // Column 12: link url 2
+                        popuplinktitle2: row[12],      // Column 13: link title 2
+                        popuplinkdescription2: row[13],// Column 14: link description 2
+                        popuplinkimg2: row[14],        // Column 15: link image 2
+                        popuplinkurl3: row[15],        // Column 16: link url 3
+                        popuplinktitle3: row[16],      // Column 17: link title 3
+                        popuplinkdescription3: row[17],// Column 18: link description 3
+                        popuplinkimg3: row[18],        // Column 19: link image 3
+                        popuplinkurl4: row[19],        // Column 20: link url 4
+                        popuplinktitle4: row[20],      // Column 21: link title 4
+                        popuplinkdescription4: row[21],// Column 22: link description 4
+                        popuplinkimg4: row[22],        // Column 23: link image 4
+                        popuplinkurl5: row[23],        // Column 24: link url 5
+                        popuplinktitle5: row[24],      // Column 25: link title 5
+                        popuplinkdescription5: row[25],// Column 26: link description 5
+                        popuplinkimg5: row[26],        // Column 27: link image 5
+                        popupfeaturelinkurl1: row[27], // Column 28: feature link url 1
+                        popupfeaturelinktitle1: row[28],// Column 29: feature link title 1
+                        popupfeaturelinkdescription1: row[29],// Column 30: feature link description 1
+                        popupfeaturelinkimg1: row[30], // Column 31: feature link image 1
+                        popupfeaturelinkurl2: row[31], // Column 32: feature link url 2
+                        popupfeaturelinktitle2: row[32],// Column 33: feature link title 2
+                        popupfeaturelinkdescription2: row[33],// Column 34: feature link description 2
+                        popupfeaturelinkimg2: row[34], // Column 35: feature link image 2
+                        popupfeaturelinkurl3: row[35], // Column 36: feature link url 3
+                        popupfeaturelinktitle3: row[36],// Column 37: feature link title 3
+                        popupfeaturelinkdescription3: row[37],// Column 38: feature link description 3
+                        popupfeaturelinkimg3: row[38], // Column 39: feature link image 3
+                        connections: row[39]?.split(", ") || [], // Column 40: connections (comma-separated)
+                        practice: row[40]?.split(",") || []     // Column 41: practices (comma-separated)
+
+                    };
+
+                }
+
+                console.log("Profiles:", profiles);
+
+
+
+                // Process 'popup' query parameter
+                const popupParam = getQueryParam("popup");
+                if (popupParam) {
+                    const profileName = popupParam.replace(/%20/g, " ").toLowerCase();
+                    console.log("Normalized Profile Name:", profileName);
+
+                    const selectedProfile = profiles[profileName];
+                    console.log("selectedProfile:", selectedProfile);
+
+                    if (selectedProfile) {
+                        showPopup(selectedProfile);
+                    } else {
+                        alert("Profile not found in the query parameters!");
+                    }
+                }
+
+
+
+
+
+
+
+                // Initialize the graph after profiles are fetched
+                initializeGraph();
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        // // Call the function to fetch and process data
+        fetchProfiles();
+
+
+
+
+        function initializeGraph() {
+            const nodes = Object.keys(profiles).map((id) => ({
+                id,
+                ...profiles[id],
+            }));
+
+            const links = [];
+            Object.entries(profiles).forEach(([id, profile]) => {
+                profile.connections.forEach((connection) => {
+                    if (profiles[connection]?.connections.includes(id)) {
+                        links.push({ source: id, target: connection });
+                    }
+                });
+            });
+
+            const width = window.innerWidth;
+            const height = window.innerHeight - 20;
+
+            const svg = d3
+                .select("svg")
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .attr("preserveAspectRatio", "xMidYMid meet")
+                .call(
+                    d3.zoom().on("zoom", (event) => {
+                        svg.select("g").attr("transform", event.transform);
+                    })
+                );
+
+            const container = svg.append("g");
+
+            const simulation = d3
+                .forceSimulation(nodes)
+                .force(
+                    "link",
+                    d3
+                        .forceLink()
+                        .id((d) => d.id)
+                        .distance(100)
+                )
+                .force("charge", d3.forceManyBody().strength(-300))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(20))
+                .alphaDecay(0.03);
+
+            // Assign values to global variables
+            link = container
+                .append("g")
+                .attr("class", "links")
+                .selectAll("line")
+                .data(links)
+                .enter()
+                .append("line")
+                .attr("class", "link");
+
+            node = container
+                .append("g")
+                .attr("class", "nodes")
+                .selectAll("g")
+                .data(nodes)
+                .enter()
+                .append("g");
+
+            node
+                .append("circle")
+                .attr("r", 10)
+                .attr("fill", "#69b3a2")
+                .on("click", (event, d) => {
+                    showPopup(d);
+                    highlightNodeAndConnections(d);
+                });
+
+            node
+                .append("text")
+                .attr("x", 12)
+                .attr("y", 4)
+                .text((d) => d.title)
+                .style("font-family", "'Helvetica Neue', Helvetica, Arial, sans-serif")
+                .style("font-size", "12px")
+                .style("fill", "white");
+
+            simulation.nodes(nodes).on("tick", () => {
+                link
+                    .attr("x1", (d) => d.source.x)
+                    .attr("y1", (d) => d.source.y)
+                    .attr("x2", (d) => d.target.x)
+                    .attr("y2", (d) => d.target.y);
+
+                node.attr("transform", (d) => `translate(${d.x},${d.y})`);
+            });
+
+            simulation.force("link").links(links);
+        }
+
+        //ASSIGNING PROFILE VALUES TO POPUP
+        function showPopup(nodeData) {
+            document.getElementById("popup-title").textContent = nodeData.title;
+            document.getElementById("popup-image").src = nodeData.img;
+            document.getElementById("popup-description").textContent =
+                nodeData.description;
+            document.getElementById("popup-container").style.display = "flex";
+
+            // document.getElementById("popup-background").style.display = "flex";
+            console.log("executed: document.getElementById(popup-container).style.display = flex;")
+
+            //ASSIGNING REDIRECT LINKS
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`popup-link-title${i}`).textContent =
+                    nodeData[`popuplinktitle${i}`];
+                document.getElementById(`popup-link-description${i}`).textContent =
+                    nodeData[`popuplinkdescription${i}`];
+                document.getElementById(`popup-link-img${i}`).src =
+                    nodeData[`popuplinkimg${i}`];
+
+                const urlKey = `popuplinkurl${i}`;
+                console.log("urlkey: " + urlKey);
+                console.log(`nodeData[${urlKey}]: `, nodeData[urlKey]); // Log the URL to check
+                const linkElement = document.getElementById(`popup-link-url${i}`);
+                console.log(i + linkElement);
+
+                if (linkElement) {
+                    console.log("Setting link for", urlKey);
+                    if (nodeData[urlKey]) {
+                        linkElement.href = nodeData[urlKey];  // Set the href directly if it's a string
+                        console.log(`Set href for link ${i}: `, linkElement.href);
+                    } else {
+                        console.error(`URL for ${urlKey} is not available`);
+                    }
+                }
+            }
+
+            // ASSIGNING FEATURED REDIRECT LINKS
+            for (let i = 1; i <= 3; i++) {
+                document.getElementById(`popup-feature-link-title${i}`).textContent =
+                    nodeData[`popupfeaturelinktitle${i}`];
+                document.getElementById(
+                    `popup-feature-link-description${i}`
+                ).textContent = nodeData[`popupfeaturelinkdescription${i}`];
+                document.getElementById(`popup-feature-link-img${i}`).src =
+                    nodeData[`popupfeaturelinkimg${i}`];
+
+                const urlKey = `popupfeaturelinkurl${i}`;
+                const linkElement = document.getElementById(
+                    `popup-feature-link-url${i}`
+                );
+
+                if (linkElement) {
+                    // Dynamically set the href attribute to the URL from nodeData
+                    if (nodeData[urlKey]) {
+                        linkElement.href = Array.isArray(nodeData[urlKey]) ? nodeData[urlKey][0] : nodeData[urlKey];
+                    } else {
+                        console.error(`URL for ${urlKey} is not available`);
+                    }
+                }
+            }
+            //ASSIGNING SOCIAL MEDIA LINKS
+            document.getElementById("social1").href = nodeData.instagram;
+            document.getElementById("social2").href = nodeData.youtube;
+            document.getElementById("social3").href = nodeData.tiktok;
+        }
+
+
+        function closePopup() {
+            document.getElementById("popup-container").style.display = "none";
+            document.getElementById("popup-background").style.display = "none";
+        }
+
+        function highlightNodeAndConnections(selectedNode) {
+            link
+                .classed(
+                    "dimmed",
+                    (d) =>
+                        !(
+                            d.source.id === selectedNode.id ||
+                            d.target.id === selectedNode.id
+                        )
+                )
+                .classed(
+                    "highlighted-link",
+                    (d) =>
+                        d.source.id === selectedNode.id || d.target.id === selectedNode.id
+                );
+
+            node
+
+                .classed(
+                    "dimmed",
+
+                    (d) =>
+                        d.id !== selectedNode.id &&
+                        !selectedNode.connections.includes(d.id)
+                )
+                .classed(
+                    "highlighted-node",
+                    (d) =>
+                        d.id === selectedNode.id ||
+                        selectedNode.connections.includes(d.id)
+                );
+        }
+
+        function recenterGraph(filteredNodes) {
+            if (!filteredNodes || !filteredNodes.length) return;
+
+            // Compute the center of the nodes
+            const centerX = d3.mean(filteredNodes, (n) => n.x || 0);
+            const centerY = d3.mean(filteredNodes, (n) => n.y || 0);
+
+            if (isNaN(centerX) || isNaN(centerY)) {
+                console.error("Invalid node positions: centerX or centerY is NaN");
+                return;
+            }
+
+            // Compute the transform
+            const transform = d3.zoomIdentity.translate(
+                width / 2 - centerX,
+                height / 2 - (centerY)
+            );
+
+            // Apply the transform to the container (for the visual transform)
+            container.transition()
+                .duration(750)
+                .attr("transform", `translate(${transform.x},${transform.y}) scale(${transform.k})`);
+
+            // Update the zoom behavior on the SVG (to ensure panning/zooming works)
+            svg.transition()
+                .duration(750)
+                .call(d3.zoom().transform, transform);
+        }
+
+        function searchNode() {
+            const query = document
+                .getElementById("search-input")
+                .value.toLowerCase();
+            const matchedNode = nodes.find((node) =>
+                node.id.toLowerCase().includes(query)
+            );
+            if (matchedNode) {
+                highlightNodeAndConnections(matchedNode);
+                recenterGraph([matchedNode]);
+            } else {
+                alert("Node not found!");
+            }
+        }
+
+        function clearFilters() {
+            // Uncheck all checkboxes
+            document
+                .querySelectorAll(".filter-checkbox input")
+                .forEach((input) => (input.checked = false));
+            // Remove all highlights and dimmed nodes
+            node.classed("dimmed", false).classed("highlighted-node", false);
+            link.classed("dimmed", false).classed("highlighted-link", false);
+            recenterGraph(nodes);
+        }
+
+        function applyPracticeFilter() {
+            // Get all selected practice filters
+            const selectedPractices = Array.from(
+                document.querySelectorAll(".filter-checkbox input:checked")
+            ).map((input) => input.id);
+
+            if (!selectedPractices.length) {
+                clearFilters();
+                return;
+            }
+
+            const filteredNodes = nodes.filter((node) =>
+                selectedPractices.some((practice) => node.practice.includes(practice))
+            );
+
+            node
+                .classed("dimmed", (d) => !filteredNodes.includes(d))
+                .classed("highlighted-node", (d) => filteredNodes.includes(d));
+
+            link
+                .classed(
+                    "dimmed",
+                    (d) =>
+                        !(
+                            filteredNodes.includes(d.source) &&
+                            filteredNodes.includes(d.target)
+                        )
+                )
+                .classed(
+                    "highlighted-link",
+                    (d) =>
+                        filteredNodes.includes(d.source) &&
+                        filteredNodes.includes(d.target)
+                );
+
+            recenterGraph(filteredNodes);
+        }
+
+        function toggleFilterMenu() {
+            const menu = document.getElementById("filter-menu");
+            const filterButton = document.getElementById("filter-button");
+            if (menu.style.display === "block") {
+                menu.style.display = "none";
+                filterButton.textContent = "Filter by Practice";
+            } else {
+                menu.style.display = "block";
+                filterButton.textContent = "Close Filter";
+            }
+        }
+
+        // Close dropdown when clicking outside of it
+        document.addEventListener("click", function (event) {
+            const filterMenu = document.getElementById("filter-menu");
+            const filterButton = document.getElementById("filter-button");
+
+            if (!filterButton.contains(event.target) && !filterMenu.contains(event.target)) {
+                filterMenu.style.display = "none";
+                filterButton.textContent = "Filter by Practice";
+            }
+        });
+
+        // Function to get query parameter
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Check if URL contains 'popup' parameter
+        const popupParam = getQueryParam("popup");
+
+
+
+        // Creating the share popup container
+        const sharePopupOverlay = document.createElement('div');
+        sharePopupOverlay.classList.add('share-popup-overlay');
+        document.body.appendChild(sharePopupOverlay);
+
+        const sharePopup = document.createElement('div');
+        sharePopup.classList.add('share-popup');
+        sharePopupOverlay.appendChild(sharePopup);
+
+        const sharePopupContent = document.createElement('div');
+        sharePopupContent.classList.add('popup-content');
+        sharePopup.appendChild(sharePopupContent);
+
+        const copyButton = document.createElement('button');
+        copyButton.textContent = 'Copy URL';
+        copyButton.classList.add('copy-btn');
+        sharePopup.appendChild(copyButton);
+
+        // Function to open the share popup
+        function openSharePopup(url) {
+            sharePopupContent.textContent = url; // Set the URL text
+            sharePopupOverlay.style.display = 'block'; // Show the overlay and popup
+            sharePopup.style.display = 'block';
+        }
+
+        // Function to close the share popup
+        function closeSharePopup() {
+            sharePopupOverlay.style.display = 'none'; // Hide the overlay and popup
+            sharePopup.style.display = 'none';
+        }
+
+        // Close popup when the overlay is clicked
+        sharePopupOverlay.addEventListener('click', closeSharePopup);
+
+        // Add event listener to copy the URL to clipboard
+        copyButton.addEventListener('click', function () {
+            const textArea = document.createElement('textarea');
+            textArea.value = sharePopupContent.textContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            alert('URL copied to clipboard!');
+        });
+
+        // Adding event listeners to share icons
+        for (let i = 1; i <= 5; i++) {
+            const shareIcon = document.querySelector(`#popup-link-url${i} .share-icon`);
+
+            if (shareIcon) {
+                shareIcon.addEventListener('click', function (e) {
+                    e.preventDefault(); // Prevent default action of the <img> tag
+                    const url = document.getElementById(`popup-link-url${i}`).href; // Get the URL from the corresponding link
+                    openSharePopup(url); // Open the popup with the URL
+                });
+            }
+        }
+
+        //CHECKING FOR A CLICK OUTSIDE POPUP 2 CLOSE IT (broken)
+        window.addEventListener('click', function (e) {
+            const popupContainer = document.getElementById('popup-container');
+
+            // Check if popup-container is visible (display: flex)
+            if (popupContainer && window.getComputedStyle(popupContainer).display === 'flex') {
+                const popup = document.getElementById('popupselection');
+                const nodes = document.getElementsByClassName('nodes');
+
+                let clickedInsideNodes = Array.from(nodes).some(node => node.contains(e.target));
+
+                if ((popup && popup.contains(e.target)) || clickedInsideNodes) {
+                    console.log("Clicked in Box");
+                } else {
+                    console.log("Clicked outside Box");
+                    closePopup();
+                }
+            }
+        });
+
+
+        // FADE IN TEST
+        document.addEventListener('DOMContentLoaded', function () {
+            const popup = document.getElementById('popupselection');
+            const button = document.getElementById('buttonscrollanchor');
+            const popupBackground = document.getElementById('popup-background');
+
+            if (popup && button && popupBackground) {
+                popup.addEventListener('scroll', function () {
+                    const rect = button.getBoundingClientRect();
+                    console.log(`Button Position - Top: ${rect.top}px, Left: ${rect.left}px`);
+
+                    // Check if the user is on mobile (adjust width threshold as needed)
+                    const isMobile = window.innerWidth <= 768; // Common mobile breakpoint
+
+                    // Set different top values for mobile and desktop
+                    const threshold = isMobile ? 1400 : 1496.875;
+
+                    if (rect.top < threshold) {
+                        console.log("BUTTON UP");
+                        popupBackground.style.display = "flex";
+                        popupBackground.style.opacity = "1";
+                        popupBackground.style.visibility = "visible";
+                    } else {
+                        console.log("BUTTON DOWN");
+                        popupBackground.style.opacity = "0";
+                        popupBackground.style.visibility = "hidden";
+                    }
+                });
+            }
+        });
+
+
+
+
+
+
+
+
+    </script>
+</body>
+
+</html>

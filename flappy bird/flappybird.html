@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Flappy Bird P5.js</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+  <style>
+    body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #333; }
+    canvas { border: 2px solid white; }
+  </style>
+</head>
+<body>
+  <script>
+    // Game Variables
+    let bird;
+    let pipes = [];
+    let score = 0;
+    let gameState = 'START'; // START, PLAYING, GAMEOVER
+    let pipeSpawnFrame;
+    let birdImg;
+    let bgMusic;
+
+    // Constants
+    const GRAVITY = 0.6;
+    const LIFT = -10; // Adjusted for potentially better feel
+    const BIRD_SIZE = 40; // Adjust if your image needs a different size
+    const PIPE_WIDTH = 80;
+    const PIPE_GAP = 160;
+    const PIPE_SPAWN_INTERVAL = 90; // Frames between pipe spawns
+
+    // Pipe Speed Variables
+    let initialPipeSpeed = 3.5;
+    let currentPipeSpeed;
+    const MAX_PIPE_SPEED = 8;
+    const PIPE_SPEED_INCREMENT = 0.002; // How much speed increases per frame
+
+    function preload() {
+      // Create dummy image and sound if files are not found, to prevent errors.
+      // Replace these with your actual files.
+      try {
+        birdImg = loadImage('static/img/KRSPIN.gif', 
+          () => console.log("Bird image loaded successfully."),
+          () => {
+            console.warn("Failed to load 'static/img/KRSPIN.gif'. Using fallback.");
+            // Fallback: Create a simple bird image
+            birdImg = createGraphics(BIRD_SIZE, BIRD_SIZE);
+            birdImg.fill(255, 255, 0); // Yellow
+            birdImg.ellipse(BIRD_SIZE / 2, BIRD_SIZE / 2, BIRD_SIZE * 0.9, BIRD_SIZE * 0.7);
+            birdImg.fill(0);
+            birdImg.ellipse(BIRD_SIZE * 0.65, BIRD_SIZE / 2, BIRD_SIZE * 0.15, BIRD_SIZE * 0.15); // Eye
+          }
+        );
+      } catch (e) {
+        console.error("Error during loadImage:", e);
+        // Fallback if loadImage itself throws an error (e.g. in very restrictive environments)
+        birdImg = createGraphics(BIRD_SIZE, BIRD_SIZE);
+        birdImg.fill(255,255,0); birdImg.ellipse(BIRD_SIZE/2, BIRD_SIZE/2, BIRD_SIZE*0.9, BIRD_SIZE*0.7);
+      }
+
+      try {
+        bgMusic = loadSound('background.wav', 
+          () => console.log("Background music loaded successfully."),
+          (err) => {
+            console.warn("Failed to load 'background.wav'. Music will be disabled. Error:", err);
+            bgMusic = null; // Ensure bgMusic is null if loading fails
+          }
+        );
+      } catch (e) {
+         console.error("Error during loadSound:", e);
+         bgMusic = null;
+      }
+    }
+
+    function setup() {
+      createCanvas(400, 600);
+      resetGame();
+      textAlign(CENTER, CENTER);
+      textSize(32);
+      noStroke(); // Applied globally, pipes will handle their fill
+      pipeSpawnFrame = frameCount;
+      imageMode(CENTER); // Set imageMode to center for the bird image
+    }
+
+    function resetGame() {
+      bird = {
+        x: 80,
+        y: height / 2,
+        velocity: 0,
+        size: BIRD_SIZE,
+        rotation: 0
+      };
+      pipes = [];
+      score = 0;
+      currentPipeSpeed = initialPipeSpeed;
+      if (bgMusic && bgMusic.isLoaded() && bgMusic.isPlaying()) {
+        bgMusic.stop();
+      }
+      // gameState is set by key press/mouse click
+    }
+
+    function draw() {
+      background(135, 206, 235); // Sky blue
+
+      if (gameState === 'START') {
+        drawStartScreen();
+        drawBirdStatic(); // Draw bird on start screen too
+      } else if (gameState === 'PLAYING') {
+        runGame();
+      } else if (gameState === 'GAMEOVER') {
+        drawGameOverScreen();
+        drawBirdStatic(); // Draw bird on game over screen
+      }
+    }
+    
+    function drawBirdStatic() {
+        if (birdImg) {
+            push();
+            translate(bird.x, bird.y);
+            image(birdImg, 0, 0, bird.size, bird.size);
+            pop();
+        } else { // Fallback if image didn't load
+            fill(255, 255, 0);
+            ellipse(bird.x, bird.y, bird.size, bird.size);
+        }
+    }
+
+    function drawStartScreen() {
+      fill(0);
+      textSize(40);
+      text("Flappy Bird", width / 2, height / 3);
+      textSize(24);
+      text("Press SPACE or Click to Start", width / 2, height / 2 + 50);
+    }
+
+    function drawGameOverScreen() {
+      // Semi-transparent overlay
+      fill(0,0,0,100);
+      rect(0,0,width,height);
+
+      fill(255);
+      textSize(48);
+      text("GAME OVER", width / 2, height / 3);
+      textSize(32);
+      text("Score: " + score, width / 2, height / 2);
+      textSize(20);
+      text("Press SPACE or Click to Restart", width / 2, height / 2 + 70);
+    }
+
+    function runGame() {
+      // --- Bird Logic ---
+      bird.velocity += GRAVITY;
+      // bird.velocity *= 0.98; // Slightly less air resistance
+      bird.y += bird.velocity;
+
+      // Rotation based on velocity
+      // Map velocity to a rotation angle. e.g. LIFT to -20 maps to -PI/6 to PI/2
+      bird.rotation = map(bird.velocity, LIFT, 20, -PI/4, PI/2);
+      bird.rotation = constrain(bird.rotation, -PI/4, PI/2); // Limit rotation
+
+
+      // Prevent bird from going off bottom (game over condition)
+      if (bird.y > height - bird.size / 2) {
+        bird.y = height - bird.size / 2;
+        bird.velocity = 0;
+        gameOver();
+      }
+      // Bird hitting top - just stops it, doesn't end game immediately
+      if (bird.y < bird.size / 2) {
+        bird.y = bird.size / 2;
+        bird.velocity = 0;
+      }
+
+      // Draw Bird
+      push();
+      translate(bird.x, bird.y);
+      rotate(bird.rotation);
+      if (birdImg) {
+        image(birdImg, 0, 0, bird.size, bird.size);
+      } else { // Fallback drawing if image is not loaded
+        fill(255, 255, 0);
+        ellipse(0, 0, bird.size, bird.size);
+      }
+      pop();
+
+
+      // --- Pipe Logic ---
+      // Spawn new pipes
+      if (frameCount - pipeSpawnFrame > PIPE_SPAWN_INTERVAL) {
+        pipes.push(new Pipe());
+        pipeSpawnFrame = frameCount;
+      }
+
+      // Update and draw pipes
+      for (let i = pipes.length - 1; i >= 0; i--) {
+        pipes[i].update();
+        pipes[i].show();
+
+        if (pipes[i].hits(bird)) {
+          gameOver();
+        }
+
+        if (pipes[i].passed(bird) && !pipes[i].hasBeenPassed) {
+          score++;
+          pipes[i].hasBeenPassed = true;
+        }
+
+        if (pipes[i].isOffscreen()) {
+          pipes.splice(i, 1);
+        }
+      }
+
+      // --- Speed up pipes ---
+      if (currentPipeSpeed < MAX_PIPE_SPEED) {
+        currentPipeSpeed += PIPE_SPEED_INCREMENT;
+      }
+
+
+      // --- Score Display ---
+      fill(0);
+      textSize(32);
+      text(score, width / 2, 50);
+    }
+
+    function gameOver() {
+      if (gameState === 'GAMEOVER') return; // Prevent multiple calls
+      gameState = 'GAMEOVER';
+      if (bgMusic && bgMusic.isLoaded() && bgMusic.isPlaying()) {
+        bgMusic.stop();
+      }
+      // You could add a 'death' sound effect here
+    }
+
+    function handleInput() {
+      if (gameState === 'PLAYING') {
+        bird.velocity = LIFT; // Set velocity directly for a more responsive flap
+      } else if (gameState === 'START' || gameState === 'GAMEOVER') {
+        resetGame();
+        gameState = 'PLAYING';
+        if (bgMusic && bgMusic.isLoaded() && !bgMusic.isPlaying()) {
+          // Ensure audio context is running (usually handled by p5.js on first user gesture)
+          if (getAudioContext().state !== 'running') {
+            getAudioContext().resume().then(() => {
+              if(bgMusic && bgMusic.isLoaded()) bgMusic.loop();
+            });
+          } else {
+            if(bgMusic && bgMusic.isLoaded()) bgMusic.loop();
+          }
+        }
+      }
+    }
+
+    function keyPressed() {
+      if (key === ' ') {
+        handleInput();
+      }
+    }
+
+    function mousePressed() {
+      handleInput();
+    }
+
+    // Pipe class
+    class Pipe {
+      constructor() {
+        this.spacing = PIPE_GAP;
+        // Ensure top pipe has enough space and bottom pipe also has enough space
+        let minTop = height / 8;
+        let maxTop = height * (3/4) - this.spacing;
+        this.top = random(minTop, maxTop);
+
+        this.bottom = this.top + this.spacing;
+        this.x = width;
+        this.w = PIPE_WIDTH;
+        this.speed = currentPipeSpeed; // Use the dynamically changing speed
+        this.highlight = false;
+        this.hasBeenPassed = false;
+      }
+
+      show() {
+        fill(0, 180, 0); // Darker Green
+        stroke(0, 100, 0); // Outline for pipes
+        strokeWeight(2);
+        if (this.highlight) {
+          fill(255, 0, 0);
+        }
+        // Top pipe
+        rect(this.x, 0, this.w, this.top);
+        // Bottom pipe
+        rect(this.x, this.bottom, this.w, height - this.bottom);
+        noStroke(); // Reset stroke for other elements
+      }
+
+      update() {
+        this.x -= this.speed;
+      }
+
+      isOffscreen() {
+        return this.x < -this.w;
+      }
+
+      hits(bird) {
+        // Using bird.size / 2 as radius for collision
+        let birdRadius = bird.size / 2;
+        if (bird.y - birdRadius < this.top || bird.y + birdRadius > this.bottom) {
+          // Bird is vertically aligned for a potential hit
+          if (bird.x + birdRadius > this.x && bird.x - birdRadius < this.x + this.w) {
+            // Bird is also horizontally aligned
+            this.highlight = true;
+            return true;
+          }
+        }
+        this.highlight = false;
+        return false;
+      }
+
+      passed(bird) {
+        return bird.x - bird.size / 2 > this.x + this.w;
+      }
+    }
+
+  </script>
+</body>
+</html>

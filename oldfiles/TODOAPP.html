@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Firebase To-do App</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <h1>EDIT</h1>
+
+  <div id="user-section">
+    <button id="login-btn">Login with Google</button>
+    <button id="logout-btn" style="display:none;">Logout</button>
+    <p id="user-info"></p>
+  </div>
+
+  <ul id="todo-list"></ul>
+
+  <form id="todo-form" style="display:none;">
+    <input type="file" id="task-image" accept="image/*">
+
+    <input type="text" id="new-task" placeholder="New task..." required />
+    <button type="submit">Add</button>
+  </form>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile Editor</title>
+  <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css" rel="stylesheet"/>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 1rem;
+      background: #f4f4f4;
+    }
+    .profile-section, .blocks-section {
+      background: white;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    .block {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .block img {
+      height: 40px;
+      width: 40px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 400px;
+    }
+    input, textarea {
+      width: 100%;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      padding: 0.5rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #999;
+    }
+    .avatar-preview {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+      margin: auto;
+    }
+  </style>
+</head>
+<body>
+
+<div class="profile-section">
+  <h2>Edit Profile</h2>
+  <img id="avatar-preview" class="avatar-preview" src="default-avatar.png" alt="Avatar" />
+  <input type="file" id="avatar-upload" accept="image/*">
+  <input type="text" id="profile-title" placeholder="Profile Title">
+  <textarea id="bio" rows="3" placeholder="Add your bio..."></textarea>
+  <input type="url" id="instagram" placeholder="Instagram URL">
+  <input type="url" id="youtube" placeholder="YouTube URL">
+  <input type="url" id="tiktok" placeholder="TikTok URL">
+  <button id="save-profile">Save Profile</button>
+</div>
+
+<div class="blocks-section">
+  <h2>Your Links</h2>
+  <div id="blocks-container"></div>
+  <button id="add-block">+ Add Block</button>
+</div>
+
+<div class="modal" id="block-modal">
+  <div class="modal-content">
+    <h3 id="modal-title">Add Block</h3>
+    <input type="text" id="block-title" placeholder="Block Title">
+    <input type="text" id="block-description" placeholder="Block Description">
+    <input type="url" id="block-link" placeholder="https://example.com">
+    <input type="file" id="block-img" accept="image/*">
+    <button id="save-block">Save Block</button>
+    <button class="secondary" id="cancel-block">Cancel</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
+<script>
+  let blocks = [];
+  let editingIndex = null;
+
+  document.getElementById('add-block').addEventListener('click', () => {
+    editingIndex = null;
+    document.getElementById('modal-title').textContent = 'Add Block';
+    document.getElementById('block-title').value = '';
+    document.getElementById('block-description').value = '';
+    document.getElementById('block-link').value = '';
+    document.getElementById('block-modal').style.display = 'flex';
+  });
+
+  document.getElementById('cancel-block').addEventListener('click', () => {
+    document.getElementById('block-modal').style.display = 'none';
+  });
+
+  document.getElementById('save-block').addEventListener('click', () => {
+    const title = document.getElementById('block-title').value;
+    const desc = document.getElementById('block-description').value;
+    const link = document.getElementById('block-link').value;
+    const img = document.getElementById('block-img').files[0];
+
+    const reader = new FileReader();
+    reader.onload = function () {
+      const blockData = {
+        title,
+        desc,
+        link,
+        imgUrl: reader.result,
+      };
+
+      if (editingIndex !== null) {
+        blocks[editingIndex] = blockData;
+      } else {
+        blocks.push(blockData);
+      }
+      document.getElementById('block-modal').style.display = 'none';
+      renderBlocks();
+    };
+
+    if (img) {
+      reader.readAsDataURL(img);
+    } else {
+      const blockData = {
+        title,
+        desc,
+        link,
+        imgUrl: null,
+      };
+      if (editingIndex !== null) {
+        blocks[editingIndex] = blockData;
+      } else {
+        blocks.push(blockData);
+      }
+      document.getElementById('block-modal').style.display = 'none';
+      renderBlocks();
+    }
+  });
+
+  function renderBlocks() {
+    const container = document.getElementById('blocks-container');
+    container.innerHTML = '';
+    blocks.forEach((block, index) => {
+      const div = document.createElement('div');
+      div.className = 'block';
+      div.innerHTML = `
+        <div>
+          <strong>${block.title}</strong><br>
+          <small>${block.desc}</small>
+        </div>
+        <div>
+          ${block.imgUrl ? `<img src="${block.imgUrl}" alt="icon">` : `<span>📎</span>`}
+          <button onclick="editBlock(${index})">✏️</button>
+          <button onclick="deleteBlock(${index})">🗑</button>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  window.editBlock = (index) => {
+    editingIndex = index;
+    const block = blocks[index];
+    document.getElementById('modal-title').textContent = 'Edit Block';
+    document.getElementById('block-title').value = block.title;
+    document.getElementById('block-description').value = block.desc;
+    document.getElementById('block-link').value = block.link;
+    document.getElementById('block-modal').style.display = 'flex';
+  };
+
+  window.deleteBlock = (index) => {
+    if (confirm('Delete this block?')) {
+      blocks.splice(index, 1);
+      renderBlocks();
+    }
+  }
+
+  // Avatar cropping (preview only, not saving to Firebase yet)
+  const avatarInput = document.getElementById('avatar-upload');
+  const avatarPreview = document.getElementById('avatar-preview');
+  let cropper;
+
+  avatarInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = document.createElement('img');
+      img.src = reader.result;
+      img.style.maxWidth = '100%';
+      document.body.appendChild(img);
+
+      cropper = new Cropper(img, {
+        aspectRatio: 1,
+        viewMode: 1,
+        cropend() {
+          const canvas = cropper.getCroppedCanvas({ width: 200, height: 200 });
+          avatarPreview.src = canvas.toDataURL();
+          document.body.removeChild(img);
+          cropper.destroy();
+        },
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+</script>
+</body>
+</html>

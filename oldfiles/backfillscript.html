@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Backfill Block createdAt</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background:#222;
+      color:#eee;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      height:100vh;
+      margin:0;
+    }
+    button {
+      padding:12px 24px;
+      font-size:18px;
+      border:none;
+      border-radius:8px;
+      cursor:pointer;
+      background:#007bff;
+      color:#fff;
+    }
+    button:disabled {
+      opacity:0.6;
+      cursor:not-allowed;
+    }
+    #log {
+      margin-top:20px;
+      max-width:600px;
+      white-space:pre-wrap;
+      background:#111;
+      padding:12px;
+      border-radius:6px;
+      font-size:14px;
+      line-height:1.4;
+    }
+  </style>
+</head>
+<body>
+  <h1>Backfill missing createdAt on blocks</h1>
+  <p style="max-width:600px;text-align:center;">This one-off script assigns a random ISO timestamp between 6 June 2025 and 7 June 2025 (UTC) to every block that currently lacks <code>createdAt</code>.</p>
+  <button id="run-backfill">Run Backfill</button>
+  <div id="log"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+    // === 1. EDIT HERE IF YOUR CONFIG EVER CHANGES ===
+    const firebaseConfig = {
+      apiKey: "AIzaSyBWYRLFIudpqYdxCZXjiT7nGoJScKcwPv0",
+      authDomain: "kr-net-23.firebaseapp.com",
+      projectId: "kr-net-23",
+      storageBucket: "kr-net-23.firebasestorage.app",
+      messagingSenderId: "466657657759",
+      appId: "1:466657657759:web:83c5c245d1736b48eab3aa",
+      measurementId: "G-Z0XEDT1G9P"
+    };
+    // =================================================
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const logEl = document.getElementById('log');
+    const btn = document.getElementById('run-backfill');
+
+    const appendLog = msg => {
+      console.log(msg);
+      logEl.textContent += `${msg}\n`;
+    };
+
+    const startDate = Date.UTC(2025, 5, 6, 0, 0, 0);   // 6 Jun 2025 (month index 5)
+    const endDate   = Date.UTC(2025, 5, 7, 23, 59, 59); // 7 Jun 2025
+
+    const randomIsoBetween = (start, end) => {
+      const ts = start + Math.random() * (end - start);
+      return new Date(ts).toISOString();
+    };
+
+    async function ensureSignedIn() {
+      if (auth.currentUser) return;
+      appendLog('No user signed in → opening Google sign-in popup…');
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      appendLog(`Signed in as ${auth.currentUser.email}`);
+    }
+
+    async function backfill() {
+      await ensureSignedIn();
+
+      appendLog('Fetching user documents…');
+      const userDocs = await getDocs(collection(db, 'users'));
+      appendLog(`Found ${userDocs.size} users.`);
+
+      let totalBlocksChecked = 0;
+      let blocksUpdated = 0;
+
+      for (const userDoc of userDocs.docs) {
+        const data = userDoc.data();
+        if (!Array.isArray(data.blocks) || data.blocks.length === 0) continue;
+
+        const updatedBlocks = data.blocks.map(b => {
+          totalBlocksChecked++;
+          if (!b.createdAt) {
+            blocksUpdated++;
+            return { ...b, createdAt: randomIsoBetween(startDate, endDate) };
+          }
+          return b;
+        });
+
+        // Only write back if something changed
+        if (blocksUpdated > 0) {
+          await updateDoc(doc(db, 'users', userDoc.id), { blocks: updatedBlocks });
+          appendLog(`✔ Updated ${userDoc.id}`);
+        }
+      }
+
+      appendLog('— Backfill complete —');
+      appendLog(`Blocks checked:  ${totalBlocksChecked}`);
+      appendLog(`Blocks updated:  ${blocksUpdated}`);
+    }
+
+    btn.addEventListener('click', async () => {
+      try {
+        btn.disabled = true;
+        await backfill();
+      } catch (err) {
+        console.error(err);
+        appendLog(`❌ Error: ${err.message || err}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html> 
