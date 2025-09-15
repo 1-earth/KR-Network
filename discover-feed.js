@@ -20,6 +20,126 @@ const auth = window.networkFirebaseUtils?.currentUser;
 
 const BATCH_SIZE = 10;
 
+// Lazy iframe loader for embeds
+let __iframeObserver = null;
+function ensureIframeObserver() {
+  if (!__iframeObserver) {
+    __iframeObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const iframe = entry.target;
+          const src = iframe.getAttribute('data-src');
+          if (src) {
+            iframe.setAttribute('src', src);
+            iframe.removeAttribute('data-src');
+          }
+          __iframeObserver.unobserve(iframe);
+        }
+      });
+    }, { root: null, rootMargin: '0px', threshold: 0.1 });
+  }
+}
+
+function createLazyEmbedIframe(provider, embedUrl, opts = {}) {
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('width', '100%');
+  // Match profile sizes: YouTube 180px (list), Spotify 152px
+  iframe.setAttribute('height', provider === 'spotify' ? '152' : '180');
+  iframe.setAttribute('frameborder', '0');
+  const extra = provider === 'spotify' && opts.spotifyType ? ` spotify-${opts.spotifyType}` : '';
+  iframe.className = 'discover-embed-iframe ' + (provider === 'spotify' ? 'spotify-embed' : 'youtube-embed') + extra;
+  if (provider === 'youtube') {
+    iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+    iframe.setAttribute('allowfullscreen', '');
+  } else if (provider === 'spotify') {
+    iframe.style.borderRadius = '12px';
+    iframe.setAttribute('allow', 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture');
+    iframe.setAttribute('loading', 'lazy');
+  }
+  // Lazy load via IntersectionObserver; also keep native hint
+  iframe.setAttribute('loading', 'lazy');
+  iframe.setAttribute('data-src', embedUrl);
+  ensureIframeObserver();
+  __iframeObserver.observe(iframe);
+  return iframe;
+}
+
+// --- Minimal URL helpers to derive embedUrl when missing ---
+function normalizeUrl(url) {
+  if (!url) return '';
+  if (/^https?:\/\//.test(url)) return url;
+  if (/^www\./.test(url)) return 'https://' + url;
+  return url;
+}
+
+function parseYoutubeEmbed(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(normalizeUrl(url));
+    if (u.hostname === 'youtu.be') {
+      const id = u.pathname.replace('/', '').trim();
+      if (id) return `https://www.youtube.com/embed/${id}?modestbranding=1&rel=0`;
+    }
+    if (u.hostname.includes('youtube.com')) {
+      const v = u.searchParams.get('v');
+      if (v) return `https://www.youtube.com/embed/${v}?modestbranding=1&rel=0`;
+      if (u.pathname.startsWith('/shorts/')) {
+        const id = u.pathname.split('/')[2];
+        if (id) return `https://www.youtube.com/embed/${id}?modestbranding=1&rel=0`;
+      }
+      if (u.pathname.startsWith('/embed/')) {
+        return `https://www.youtube.com${u.pathname}${u.search}`;
+      }
+    }
+  } catch(_) {}
+  return null;
+}
+
+function parseSpotifyEmbed(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(normalizeUrl(url));
+    if (!u.hostname.includes('spotify.com')) return null;
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length >= 2) {
+      const type = parts[0];
+      const id = parts[1];
+      const supported = ['track', 'album', 'user', 'playlist', 'artist', 'show', 'episode'];
+      if (supported.includes(type) && id) {
+        return `https://open.spotify.com/embed/${type}/${id}`;
+      }
+    }
+    if (parts.length >= 2 && parts[0] === 'user') {
+      const id = parts[1];
+      return `https://open.spotify.com/embed/user/${id}`;
+    }
+  } catch(_) {}
+  return null;
+}
+
+// Extended: also returns the spotify resource type for sizing
+function parseSpotifyEmbedWithType(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(normalizeUrl(url));
+    if (!u.hostname.includes('spotify.com')) return null;
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length >= 2) {
+      const type = parts[0];
+      const id = parts[1];
+      const supported = ['track', 'album', 'user', 'playlist', 'artist', 'show', 'episode'];
+      if (supported.includes(type) && id) {
+        return { embedUrl: `https://open.spotify.com/embed/${type}/${id}`, type };
+      }
+    }
+    if (parts.length >= 2 && parts[0] === 'user') {
+      const id = parts[1];
+      return { embedUrl: `https://open.spotify.com/embed/user/${id}`, type: 'user' };
+    }
+  } catch(_) {}
+  return null;
+}
+
 function createSortQuery(sortOption, timeFilter) {
   let q = collection(db, 'globalBlocks');
   const constraints = [];
@@ -190,7 +310,8 @@ function renderBlockCard(block, container) {
 
   const isCarousel = block.type === 'carousel';
   const isLarge = block.type === 'large-image';
-  const isDefaultLayout = !isCarousel && !isLarge; // treat undefined or 'default'
+  const isEmbed = block.type === 'embed';
+  const isDefaultLayout = !isCarousel && !isLarge && !isEmbed; // treat undefined or 'default'
 
   if (isDefaultLayout) {
       // default small thumbnail row
@@ -221,7 +342,25 @@ function renderBlockCard(block, container) {
   }
 
   // Determine image to show
-  if(block.type==='carousel' && Array.isArray(block.slides) && block.slides.length){
+  if (isEmbed) {
+      // Attempt to derive embedUrl if not persisted yet
+      let provider = block.provider;
+      let embedUrl = block.embedUrl;
+      let spotifyType = null;
+      if ((!provider || !embedUrl) && block.link) {
+        const y = parseYoutubeEmbed(block.link);
+        const s = parseSpotifyEmbedWithType(block.link);
+        if (y) { provider = 'youtube'; embedUrl = y; }
+        else if (s) { provider = 'spotify'; embedUrl = s.embedUrl; spotifyType = s.type; }
+      }
+      if (provider && embedUrl) {
+        const wrap = document.createElement('div');
+        wrap.className = 'discover-embed-wrap';
+        const iframe = createLazyEmbedIframe(provider, embedUrl, { spotifyType });
+        wrap.appendChild(iframe);
+        card.appendChild(wrap);
+      }
+  } else if(block.type==='carousel' && Array.isArray(block.slides) && block.slides.length){
       const car=document.createElement('div');
       car.className='discover-carousel';
       block.slides.forEach(slide=>{

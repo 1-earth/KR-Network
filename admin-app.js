@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentBlockType = 'default';
     let carouselSlides = [];
     const DEFAULT_ICON = 'static/img/default-icon.png';
+    let currentEmbed = null; // { provider: 'youtube'|'spotify', embedUrl: string }
 
     const adminContent = document.getElementById('admin-content');
     const loadingIndicator = document.getElementById('loading-indicator');
@@ -546,6 +547,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 blockHTML = `<strong>${block.title}</strong> (Large Image)`;
             } else if (block.type === 'carousel') {
                  blockHTML = `<strong>Carousel</strong> (${block.slides.length} slides)`;
+            } else if (block.type === 'embed') {
+                const prov = (block.provider || '').toUpperCase();
+                blockHTML = `<strong>${block.title || ''}</strong> (Embed: ${prov || 'Unknown'})`;
             }
 
             blockDiv.innerHTML = `
@@ -587,6 +591,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (block.type === 'carousel') {
                 carouselSlides = JSON.parse(JSON.stringify(block.slides || []));
                 renderCarouselSlidesFields();
+            } else if (block.type === 'embed') {
+                currentEmbed = { provider: block.provider, embedUrl: block.embedUrl };
+                const typeCards = document.getElementById('admin-block-type-select');
+                if (typeCards) typeCards.style.display = 'none';
+                document.getElementById('admin-block-title').value = block.title || '';
+                document.getElementById('admin-block-description').value = block.desc || '';
+                document.getElementById('admin-block-link').value = block.link || '';
+                document.getElementById('admin-block-img').value = '';
+                const details = document.getElementById('admin-block-details-container');
+                if (details) details.style.display = 'block';
+                setBlockType('embed', false);
             } else {
                 document.getElementById('admin-block-title').value = block.title || '';
                 document.getElementById('admin-block-description').value = block.desc || '';
@@ -671,10 +686,95 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Live preview listeners and metadata fetching
         const blockLinkInput = document.getElementById('admin-block-link');
-        blockLinkInput.addEventListener('input', renderBlockLivePreview);
+        const embedOptionsDiv = document.getElementById('admin-embed-options');
+        const embedYoutubeBtn = document.getElementById('admin-embed-youtube-btn');
+        const embedSpotifyBtn = document.getElementById('admin-embed-spotify-btn');
+
+        blockLinkInput.addEventListener('input', (e) => {
+            renderBlockLivePreview();
+            const url = e.target.value.trim();
+            const y = parseYoutubeEmbed(url);
+            const s = parseSpotifyEmbed(url);
+            if (embedYoutubeBtn) {
+                embedYoutubeBtn.disabled = !y;
+                embedYoutubeBtn.style.display = y ? 'inline-block' : 'none';
+            }
+            if (embedSpotifyBtn) {
+                embedSpotifyBtn.disabled = !s;
+                embedSpotifyBtn.style.display = s ? 'inline-block' : 'none';
+            }
+            if (embedOptionsDiv) embedOptionsDiv.style.display = (y || s) ? 'block' : 'none';
+
+            if (currentBlockType === 'embed' && currentEmbed) {
+                const next = currentEmbed.provider === 'youtube' ? parseYoutubeEmbed(url) : parseSpotifyEmbed(url);
+                currentEmbed = next ? { provider: currentEmbed.provider, embedUrl: next } : null;
+                renderBlockLivePreview();
+            }
+        });
         blockLinkInput.addEventListener('change', (e) => {
+            const url = e.target.value.trim();
+            const y = parseYoutubeEmbed(url);
+            const s = parseSpotifyEmbed(url);
+            if (embedYoutubeBtn) {
+                embedYoutubeBtn.disabled = !y;
+                embedYoutubeBtn.style.display = y ? 'inline-block' : 'none';
+            }
+            if (embedSpotifyBtn) {
+                embedSpotifyBtn.disabled = !s;
+                embedSpotifyBtn.style.display = s ? 'inline-block' : 'none';
+            }
+            if (embedOptionsDiv) embedOptionsDiv.style.display = (y || s) ? 'block' : 'none';
             fetchMetadataForInput(e.target, 'default');
         });
+
+        if (embedYoutubeBtn) {
+            embedYoutubeBtn.addEventListener('click', () => {
+                const url = blockLinkInput.value.trim();
+                const embedUrl = parseYoutubeEmbed(url);
+                if (!embedUrl) {
+                    alert('Please paste a valid YouTube URL first.');
+                    blockLinkInput.focus();
+                    return;
+                }
+                currentEmbed = { provider: 'youtube', embedUrl };
+                setBlockType('embed', false);
+                const details = document.getElementById('admin-block-details-container');
+                if (details) details.style.display = 'block';
+                const imagePreviewDiv = document.getElementById('admin-image-preview');
+                const loadingIndicatorContainer = document.getElementById('admin-url-loading-indicator');
+                if (!document.getElementById('admin-block-title').value && !document.getElementById('admin-block-description').value) {
+                    fetchLinkMetadata(url, imagePreviewDiv, loadingIndicatorContainer)
+                        .catch(() => {})
+                        .finally(() => renderBlockLivePreview());
+                } else {
+                    renderBlockLivePreview();
+                }
+            });
+        }
+        if (embedSpotifyBtn) {
+            embedSpotifyBtn.addEventListener('click', () => {
+                const url = blockLinkInput.value.trim();
+                const embedUrl = parseSpotifyEmbed(url);
+                if (!embedUrl) {
+                    alert('Please paste a valid Spotify URL first.');
+                    blockLinkInput.focus();
+                    return;
+                }
+                currentEmbed = { provider: 'spotify', embedUrl };
+                setBlockType('embed', false);
+                const details = document.getElementById('admin-block-details-container');
+                if (details) details.style.display = 'block';
+                const imagePreviewDiv = document.getElementById('admin-image-preview');
+                const loadingIndicatorContainer = document.getElementById('admin-url-loading-indicator');
+                if (!document.getElementById('admin-block-title').value && !document.getElementById('admin-block-description').value) {
+                    fetchLinkMetadata(url, imagePreviewDiv, loadingIndicatorContainer)
+                        .catch(() => {})
+                        .finally(() => renderBlockLivePreview());
+                } else {
+                    renderBlockLivePreview();
+                }
+            });
+        }
 
         ['admin-block-title', 'admin-block-description'].forEach(id => {
             document.getElementById(id).addEventListener('input', renderBlockLivePreview);
@@ -696,13 +796,39 @@ document.addEventListener('DOMContentLoaded', () => {
     function setBlockType(type, isNew) {
         currentBlockType = type;
         document.querySelectorAll('#admin-block-type-select .block-type-card').forEach(c => c.classList.remove('selected'));
-        document.querySelector(`#admin-block-type-select .block-type-card[data-type="${type}"]`).classList.add('selected');
+        const selectedCard = document.querySelector(`#admin-block-type-select .block-type-card[data-type="${type}"]`);
+        if (selectedCard) selectedCard.classList.add('selected');
 
         const fieldsDefault = document.getElementById('admin-block-fields-default-large');
         const fieldsCarousel = document.getElementById('admin-block-fields-carousel');
         
         fieldsDefault.style.display = (type === 'carousel') ? 'none' : 'block';
         fieldsCarousel.style.display = (type === 'carousel') ? 'block' : 'none';
+
+        // Show/hide embed options and type cards
+        const embedOptionsDiv = document.getElementById('admin-embed-options');
+        const linkInput = document.getElementById('admin-block-link');
+        const typeCards = document.getElementById('admin-block-type-select');
+        if (embedOptionsDiv) {
+            if (type === 'embed') {
+                embedOptionsDiv.style.display = 'none';
+            } else {
+                const y = parseYoutubeEmbed(linkInput.value.trim());
+                const s = parseSpotifyEmbed(linkInput.value.trim());
+                embedOptionsDiv.style.display = (y || s) ? 'block' : 'none';
+                const yBtn = document.getElementById('admin-embed-youtube-btn');
+                const sBtn = document.getElementById('admin-embed-spotify-btn');
+                if (yBtn) { yBtn.style.display = y ? 'inline-block' : 'none'; yBtn.disabled = !y; }
+                if (sBtn) { sBtn.style.display = s ? 'inline-block' : 'none'; sBtn.disabled = !s; }
+            }
+        }
+        if (typeCards) {
+            if (type === 'embed') {
+                typeCards.style.display = 'none';
+            } else {
+                typeCards.style.display = 'flex';
+            }
+        }
 
         if (isNew) {
             // Reset fields
@@ -719,6 +845,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if(type !== 'carousel') {
              document.getElementById('admin-block-details-container').style.display = 'block';
         }
+
+        // Hide image upload when in embed mode
+        const imgInput = document.getElementById('admin-block-img');
+        const imgLabelEl = imgInput ? imgInput.previousElementSibling : null;
+        const imagePreviewEl = document.getElementById('admin-image-preview');
+        if (type === 'embed') {
+            if (imgLabelEl) imgLabelEl.style.display = 'none';
+            if (imgInput) imgInput.style.display = 'none';
+            if (imagePreviewEl) imagePreviewEl.style.display = 'none';
+        } else {
+            if (imgLabelEl) imgLabelEl.style.display = '';
+            if (imgInput) imgInput.style.display = '';
+            if (imagePreviewEl) imagePreviewEl.style.display = '';
+        }
     }
 
     let lastPreviewUrl = null;
@@ -728,7 +868,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const blockDescInput = document.getElementById('admin-block-description');
         const blockImgInput = document.getElementById('admin-block-img');
 
-        if (currentBlockType === 'default' || currentBlockType === 'large-image') {
+        if (currentBlockType === 'embed' && currentEmbed) {
+            let iframeHtml = '';
+            if (currentEmbed.provider === 'youtube') {
+                iframeHtml = `<iframe width="100%" height="315" src="${currentEmbed.embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+            } else if (currentEmbed.provider === 'spotify') {
+                iframeHtml = `<iframe style="border-radius:12px" src="${currentEmbed.embedUrl}" width="100%" height="152" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+            }
+            blockLivePreview.innerHTML = `<p class='preview-text'>Block Preview:</p><div class='block' style='flex-direction:column;align-items:stretch;max-width:350px;'>${iframeHtml}<div style='padding:8px 0 0 0;'><strong>${blockTitleInput.value}</strong><br><small>${blockDescInput.value}</small></div></div>`;
+        } else if (currentBlockType === 'default' || currentBlockType === 'large-image') {
             let imgSrc = '';
             if (blockImgInput.files[0]) {
                 if (lastPreviewUrl) URL.revokeObjectURL(lastPreviewUrl);
@@ -873,6 +1021,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 newBlockData = { type: 'carousel', slides: slidesToSave };
+            } else if (currentBlockType === 'embed' && currentEmbed) {
+                newBlockData = {
+                    type: 'embed',
+                    provider: currentEmbed.provider,
+                    embedUrl: currentEmbed.embedUrl,
+                    title: document.getElementById('admin-block-title').value,
+                    desc: document.getElementById('admin-block-description').value,
+                    link: document.getElementById('admin-block-link').value,
+                    icon: DEFAULT_ICON
+                };
             } else {
                 const imgInput = document.getElementById('admin-block-img');
                 let iconUrl = imgInput.dataset.icon || (editingBlockIndex !== null ? currentlyEditingUserBlocks[editingBlockIndex].icon : '');
@@ -925,6 +1083,51 @@ document.addEventListener('DOMContentLoaded', () => {
         if (/^https?:\/\//.test(url)) return url;
         if (/^www\./.test(url)) return 'https://' + url;
         return url;
+    }
+
+    function parseYoutubeEmbed(url) {
+        if (!url) return null;
+        try {
+            const u = new URL(normalizeUrl(url));
+            if (u.hostname === 'youtu.be') {
+                const id = u.pathname.replace('/', '').trim();
+                if (id) return `https://www.youtube.com/embed/${id}?modestbranding=1&rel=0`;
+            }
+            if (u.hostname.includes('youtube.com')) {
+                const v = u.searchParams.get('v');
+                if (v) return `https://www.youtube.com/embed/${v}?modestbranding=1&rel=0`;
+                if (u.pathname.startsWith('/shorts/')) {
+                    const id = u.pathname.split('/')[2];
+                    if (id) return `https://www.youtube.com/embed/${id}?modestbranding=1&rel=0`;
+                }
+                if (u.pathname.startsWith('/embed/')) {
+                    return `https://www.youtube.com${u.pathname}${u.search}`;
+                }
+            }
+        } catch (_) {}
+        return null;
+    }
+
+    function parseSpotifyEmbed(url) {
+        if (!url) return null;
+        try {
+            const u = new URL(normalizeUrl(url));
+            if (!u.hostname.includes('spotify.com')) return null;
+            const parts = u.pathname.split('/').filter(Boolean);
+            if (parts.length >= 2) {
+                const type = parts[0];
+                const id = parts[1];
+                const supported = ['track', 'album', 'user', 'playlist', 'artist', 'show', 'episode'];
+                if (supported.includes(type) && id) {
+                    return `https://open.spotify.com/embed/${type}/${id}`;
+                }
+            }
+            if (parts.length >= 2 && parts[0] === 'user') {
+                const id = parts[1];
+                return `https://open.spotify.com/embed/user/${id}`;
+            }
+        } catch (_) {}
+        return null;
     }
 
     async function fetchLinkMetadata(url) {

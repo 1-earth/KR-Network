@@ -134,8 +134,9 @@ avatarInput.addEventListener("change", (e) => {
       modal.innerHTML = `<div style="background: white; padding: 1rem; border-radius: 8px; max-width: 90%; max-height: 90vh; overflow: auto;">
         <div style="max-height: 70vh; margin-bottom: 1rem;"><img id="crop-image" style="max-width: 100%; display: block;" /></div>
         <div style="text-align: center;">
-          <button id="crop-confirm" style="margin-right: 10px;">Crop</button>
-          <button id="crop-cancel" class="secondary">Cancel</button>
+          <button id="crop-cancel" style="margin-right: 10px;" class="secondary">Cancel</button>
+          <button id="crop-confirm" >Crop</button>
+          
         </div>
       </div>`;
       document.body.appendChild(modal);
@@ -2018,3 +2019,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 // --- END PREVIEW PAGE MODAL LOGIC ---
+// --- PREVIEW BUTTON SCROLL REVEAL LOGIC ---
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('preview-btn-container');
+    const btn = document.getElementById('preview-page-btn');
+    if (!container || !btn) return;
+
+    let lastY = window.scrollY;
+    const THRESHOLD = 200; // show only after scrolled this far
+    const HIDE_VELOCITY = 1.2; // px per ms; require fast upward scroll to hide
+    let lastT = performance.now();
+
+    function updateVisibility() {
+        const computed = window.getComputedStyle(btn);
+        const isVisible = computed.display !== 'none' && !btn.disabled;
+        if (!isVisible) {
+            container.classList.remove('show');
+            return;
+        }
+        const now = performance.now();
+        const y = window.scrollY;
+        const dy = y - lastY;
+        const dt = Math.max(1, now - lastT);
+        const v = dy / dt; // px per ms, positive when going down
+        const goingDown = dy > 0;
+        lastY = y;
+        lastT = now;
+
+        if (goingDown && y > THRESHOLD) {
+            container.classList.add('show');
+        } else if (!goingDown) {
+            // Hide only if upward speed exceeds threshold and we're not near top
+            if (Math.abs(v) > HIDE_VELOCITY && y > 60) {
+                container.classList.remove('show');
+            }
+        }
+    }
+
+    updateVisibility();
+    window.addEventListener('scroll', updateVisibility, { passive: true });
+    const observer = new MutationObserver(updateVisibility);
+    observer.observe(btn, { attributes: true, attributeFilter: ['disabled', 'style', 'class'] });
+});
+// --- END PREVIEW BUTTON SCROLL REVEAL LOGIC ---

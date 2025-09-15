@@ -269,7 +269,7 @@
       /* Mobile positioning for JOIN button */
       @media (max-width: 768px) {
         .join-kr-main-btn.positioned {
-          bottom: 110px;
+          bottom: 70px;
           left: 50%;
           transform: translateX(-50%);
         }
@@ -339,8 +339,8 @@
 
       .close-join-popup {
         position: absolute;
-        /* top: 40px; */
-        right: 0px;
+        top: 40px;
+        right: 20px;
         background: none;
         border: none;
         color: white;
@@ -351,7 +351,7 @@
 
       .join-popup-header {
         margin-top: 10px;
-        margin-bottom: 15px;
+        margin-bottom: 0px;
       }
 
       .kr-globe-logo {
@@ -366,9 +366,15 @@
 
       .welcome-title {
         font-size: 1.5rem;
-        font-weight: bold;
+        font-weight: normal;
         margin: 10px 0 5px 0;
         line-height: 1.1;
+      }
+
+      @media (max-width: 768px) {
+        .welcome-title {
+          font-size: 1.0rem;
+        }
       }
 
       .kr-network-text {
@@ -405,8 +411,9 @@
 
       .platform-description {
         font-size: 1.1rem;
-        font-weight: bold;
-
+        font-weight: normal;
+        width: 100%;
+        text-align: left;
         margin: 0px 0 0px 0;
       }
 
@@ -423,9 +430,10 @@
         background: rgba(255, 255, 255, 0.9);
         color: #333;
         padding: 5px 10px;
-        border-radius: 20px;
-        font-size: 0.75rem;
+        border-radius: 10px;
+        font-size: 0.9rem;
         text-align: left;
+        border: 1px solid #333;
       }
 
       .find-out-more {
@@ -434,15 +442,18 @@
       }
 
       .find-out-more-btn {
-        background: #ffaa00;
-        color: #333;
+        background: #F68A3F;
+        text-decoration: none;
+        color: #ffffff;
+        float: right;
         border: none;
-        padding: 8px 20px;
-        border-radius: 15px;
+        padding: 4px 10px;
+        border-radius: 10px;
         font-size: 0.9rem;
         font-weight: bold;
         cursor: pointer;
-        text-decoration: underline;
+        text-transform: uppercase;
+        border: 1px solid #ffffff;
       }
 
       .join-movement {
@@ -462,11 +473,15 @@
         margin: 0;
       }
 
+      .join-popup-about{
+        width: 90%;
+      }
+
       .join-kr-main-btn {
         background: #0000ff;
         color: #ffffff;
         border: none;
-        padding: 12px 35px;
+        padding: 12px 25px;
         border-radius: 25px;
         font-size: 1.3rem;
         font-weight: bold;
@@ -499,20 +514,17 @@
         }
 
 
-        .welcome-title {
-          font-size: 1.2rem;
-        }
 
         .kr-network-text {
           font-size: 2rem;
         }
 
         .tagline-text {
-          font-size: 1.4rem;
+          font-size: 1.3rem;
         }
 
         .platform-description {
-          font-size: 1.1rem;
+          font-size: 1.0rem;
         }
 
         .benefit-card {
@@ -951,31 +963,33 @@
             >
           </p>
 
-          <p class="platform-description">KR is a platform where you can:</p>
+          <div class="join-popup-about">
+            <p class="platform-description">KR is a platform where you can:</p>
 
-          <div class="benefits-container">
-            <div class="benefit-card">
-              <strong>Be discovered</strong> for what you do.
+            <div class="benefits-container">
+              <div class="benefit-card">
+                <strong>Be discovered</strong> <br>
+                for what you do.
+              </div>
+              <div class="benefit-card">
+                <strong>Collaborate</strong> <br>
+                with other new artists
+              </div>
+              <div class="benefit-card">
+                <strong>Platform your community</strong><br>
+                by creating a profile and adding your friends.
+              </div>
             </div>
-            <div class="benefit-card">
-              <strong>Connect and collaborate</strong> with other new artists
-            </div>
-            <div class="benefit-card">
-              <strong>Platform your community</strong> by creating a profile
-              and adding your friends.
-            </div>
+            <a href="https://www.1-earth.world/Portfolio/work.html?id=aMymkMkPaedegpiz0rfmsACaRG23-blog-10" target="_blank"><button class="find-out-more-btn">Find Out More!</button></a>
+
           </div>
 
-          <!-- <div class="find-out-more">
-            <button class="find-out-more-btn">Find Out More!</button>
-          </div> -->
-
-          <div class="join-movement">
+          <!-- <div class="join-movement">
             <p class="movement-text"><em>Join the Movement,</em></p>
             <p class="get-started-text">
               <strong>JOIN & GET STARTED IN MINUTES!</strong>
             </p>
-          </div>
+          </div> -->
 
           <button id="join-kr-main-btn" class="join-kr-main-btn">JOIN →</button>
         </div>

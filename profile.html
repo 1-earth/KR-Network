@@ -1107,24 +1107,41 @@
       position: fixed;
       bottom:10px; /* Above mobile nav */
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, 24px); /* off-screen by default */
       z-index: 1000;
       transition: all 0.3s ease;
+      opacity: 0;
+      pointer-events: none;
     }
 
     @media (max-width: 768px) {
       #preview-btn-container {
-        bottom: 80px;
+        bottom: 40px;
       }
+      /* Stack preview label into two lines for mobile */
+      #preview-page-btn .label-top { display: block !important; line-height: 1.05; }
+      #preview-page-btn .label-bottom { display: block !important; line-height: 1.05; margin-left: 0; }
     }
 
     #preview-page-btn {
-      background-color: #a2a2a2;
+      background-color: #0000ff;
       opacity: 0.9;
       display: flex;
       align-items: center;
+      color: #fff;
+      /* border-bottom: 1px solid #fff; */
       gap: 8px;
       transition: all 0.2s ease-in-out;
+    }
+    #preview-page-btn .label-wrap { display: inline-block; text-align: left; }
+    #preview-page-btn .label-top { display: inline; }
+    #preview-page-btn .label-bottom { display: inline; }
+
+    /* Slide-in state */
+    #preview-btn-container.show {
+      transform: translate(-50%, 0);
+      opacity: 1;
+      pointer-events: auto;
     }
 
     #preview-page-btn:hover:not(:disabled) {
@@ -1236,13 +1253,13 @@
           <div id="profile-title-display" class="center-align" style="margin-bottom: 10px; font-weight: bold; font-size: 1.1em;"></div>
 
           <!-- Existing Profile Section Content -->
-          <div class="file-upload-wrapper" style="margin-top:1rem;">
+          <div class="file-upload-wrapper" style="margin-top:0.5rem;">
             <button class="file-upload-button">Change Profile Picture</button>
             <span class="file-upload-name"> </span>
             <input type="file" id="avatar-upload" accept="image/*" class="file-upload-input">
           </div>
           <div class="input-feild-title">
-            <p class="input-feild-title-text">Display Name<span>*</span></p>
+            <p class="input-feild-title-text">Your Name<span>*</span></p>
           </div>
           <input type="text" class="input-feild " id="profile-title" placeholder="Profile Title">
           <div class="input-feild-title">
@@ -1521,7 +1538,7 @@
   <div id="preview-btn-container">
     <button id="preview-page-btn" style="display: none;" disabled>
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-      <span>Preview your page</span>
+      <span class="label-wrap"><span class="label-top">[PREVIEW]</span><span class="label-bottom">YOUR PAGE</span></span>
     </button>
   </div>
 

@@ -424,6 +424,9 @@ async function upsertGlobalBlock(ownerEmail, block) {
     icon: block.icon || '',
     type: block.type || 'default',
     slides: block.slides || [],
+    // Include embed-specific fields so Discover can render embeds
+    provider: block.provider || null,
+    embedUrl: block.embedUrl || null,
     upvotes: block.upvotes || 0,
     downvotes: block.downvotes || 0,
     score: (block.upvotes || 0) - (block.downvotes || 0),
