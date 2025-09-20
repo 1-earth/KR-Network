@@ -5,6 +5,7 @@ import {
   limit,
   startAfter,
   getDocs,
+  getDoc,
   where,
   doc,
   runTransaction,
@@ -254,6 +255,7 @@ function renderBlockCard(block, container) {
   titleWrap.innerHTML = `<div class="discover-author">Loading...</div><div class="discover-time">${formatTimeAgo(block.createdAt)}</div>`;
   header.appendChild(avatar);
   header.appendChild(titleWrap);
+  // Owner action buttons (edit/delete) will be appended later if allowed
 
   // Make the entire header clickable to open the author's profile
   header.style.cursor = 'pointer';
@@ -312,6 +314,31 @@ function renderBlockCard(block, container) {
   const isLarge = block.type === 'large-image';
   const isEmbed = block.type === 'embed';
   const isDefaultLayout = !isCarousel && !isLarge && !isEmbed; // treat undefined or 'default'
+
+  // --- Owner controls: add Edit/Delete if the card belongs to current user ---
+  try {
+    const me = window.networkFirebaseUtils?.currentUser?.email;
+    if (me && me === block.owner) {
+      const actionsWrap = document.createElement('div');
+      actionsWrap.style.marginLeft = 'auto';
+      actionsWrap.style.display = 'flex';
+      actionsWrap.style.gap = '6px';
+
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.className = 'discoverfeed-userpost-edit';
+      editBtn.onclick = (e)=>{ e.stopPropagation(); openEditGlobalBlockModal(block, card); };
+
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Del';
+      delBtn.className = 'discoverfeed-userpost-delete';
+      delBtn.onclick = async (e)=>{ e.stopPropagation(); await deleteGlobalBlockOnly(block, card); };
+
+      actionsWrap.appendChild(editBtn);
+      actionsWrap.appendChild(delBtn);
+      header.appendChild(actionsWrap);
+    }
+  } catch(_){}
 
   if (isDefaultLayout) {
       // default small thumbnail row
@@ -772,3 +799,100 @@ export async function initDiscoverFeed(containerEl) {
 }
 
 window.discoverFeed = { initDiscoverFeed };
+
+// --- Owner Controls: Edit/Delete Handlers ---
+function ensureEditModal() {
+  let overlay = document.getElementById('df-edit-overlay');
+  if (overlay) return overlay;
+  overlay = document.createElement('div');
+  overlay.id = 'df-edit-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:11000;';
+  const modal = document.createElement('div');
+  modal.id = 'df-edit-modal';
+  modal.style.cssText = 'background:#1a1a1a;border-radius:8px;color:#fff;width:90%;max-width:480px;max-height:90vh;overflow:auto;position:relative;padding:16px;box-shadow:0 5px 25px rgba(0,0,0,0.3)';
+  modal.innerHTML = `
+    <button id="df-edit-close" style="position:absolute;top:8px;right:12px;background:none;border:none;color:#ffffff;font-size:28px;cursor:pointer">&times;</button>
+    <h3 style="margin:0 0 12px 0;">Edit Block</h3>
+    <div class="form-field"><label style="display:block;margin-bottom:6px;">Title</label><input id="df-edit-title" class="input-feild" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;background:#2a2a2a;color:#fff"></div>
+    <div class="form-field"><label style="display:block;margin-bottom:6px;">Description</label><textarea id="df-edit-desc" class="input-feild" rows="3" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;background:#2a2a2a;color:#fff"></textarea></div>
+    <div class="form-field"><label style="display:block;margin-bottom:6px;">Link</label><input id="df-edit-link" class="input-feild" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;background:#2a2a2a;color:#fff"></div>
+    <div class="form-actions" style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
+      <button id="df-edit-save" class="primary-btn" style="background:#0000ff;color:#fff;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">Save</button>
+      <button id="df-edit-cancel" class="secondary-btn" style="background:#666;color:#fff;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">Cancel</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (e)=>{ if (e.target === overlay) overlay.style.display='none'; });
+  overlay.querySelector('#df-edit-close').onclick = ()=> overlay.style.display='none';
+  overlay.querySelector('#df-edit-cancel').onclick = ()=> overlay.style.display='none';
+  return overlay;
+}
+
+async function deleteGlobalBlockOnly(block, card){
+  if (!block || !block.globalId) return;
+  if (!confirm('Delete this block from Discover? This will not remove it from your profile.')) return;
+  try {
+    await deleteDoc(doc(db,'globalBlocks', block.globalId));
+    if (card && card.parentNode) card.parentNode.removeChild(card);
+  } catch(e){
+    alert('Failed to delete block.');
+    console.error(e);
+  }
+}
+
+async function openEditGlobalBlockModal(block){
+  if(!block || !block.globalId) return;
+  const overlay = ensureEditModal();
+  const titleEl = overlay.querySelector('#df-edit-title');
+  const descEl = overlay.querySelector('#df-edit-desc');
+  const linkEl = overlay.querySelector('#df-edit-link');
+  const saveBtn = overlay.querySelector('#df-edit-save');
+
+  titleEl.value = block.title || '';
+  descEl.value = block.desc || '';
+  linkEl.value = block.link || '';
+  overlay.style.display = 'flex';
+
+  saveBtn.onclick = async ()=>{
+    const newTitle = titleEl.value.trim();
+    const newDesc = descEl.value.trim();
+    const newLink = linkEl.value.trim();
+
+    let provider = block.provider || null;
+    let embedUrl = block.embedUrl || null;
+    if (block.type === 'embed' && newLink) {
+      const y = parseYoutubeEmbed(newLink);
+      const s = parseSpotifyEmbedWithType(newLink);
+      if (y) { provider = 'youtube'; embedUrl = y; }
+      else if (s) { provider = 'spotify'; embedUrl = s.embedUrl; }
+    }
+
+    try {
+      const gref = doc(db,'globalBlocks', block.globalId);
+      const gpayload = { title: newTitle, desc: newDesc, link: newLink };
+      if (block.type === 'embed') Object.assign(gpayload,{ provider, embedUrl });
+      await updateDoc(gref, gpayload);
+
+      const ownerRef = doc(db,'users', block.owner);
+      const ownerSnap = await getDoc(ownerRef);
+      if (ownerSnap.exists()) {
+        const data = ownerSnap.data();
+        const arr = Array.isArray(data.blocks) ? data.blocks.slice() : [];
+        const idx = arr.findIndex(b => b && b.globalId === block.globalId);
+        if (idx !== -1) {
+          const merged = { ...arr[idx], ...gpayload, type: arr[idx].type || block.type };
+          if (block.type === 'embed') Object.assign(merged,{ provider, embedUrl });
+          arr[idx] = merged;
+          await updateDoc(ownerRef, { blocks: arr });
+        }
+      }
+
+      overlay.style.display = 'none';
+      alert('Block updated.');
+    } catch(e){
+      alert('Failed to update block.');
+      console.error(e);
+    }
+  };
+}

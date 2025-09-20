@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>KR NETWORK</title>
 
     <!-- Meta Tags for social media sharing -->
@@ -643,6 +643,17 @@
         <h2 id="popup-title"></h2>
         <div class="social-icons"></div>
         <div class="popup-spacer"></div>
+        <div class="scroll-indicator" aria-hidden="true">
+          <svg class="chev" width="24" height="16" viewBox="0 0 24 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 2 L12 14 L22 2" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg class="chev" width="24" height="16" viewBox="0 0 24 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 2 L12 14 L22 2" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg class="chev" width="24" height="16" viewBox="0 0 24 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 2 L12 14 L22 2" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
         <!-- <div class="feature-tile-container"></div> -->
         <a href="profile.html" target="_blank"
           ><button
@@ -916,6 +927,21 @@
       </div>
     </div>
 
+    <!-- Interaction Hint (shown once) -->
+    <div id="interaction-hint" class="interaction-hint" aria-hidden="true">
+      <span class="hint-text"></span>
+    </div>
+    <!-- Clickable Nodes Hint (shown once) -->
+    <div id="clickable-hint" class="interaction-hint click-hint" aria-hidden="true">
+      <span class="hint-text"></span>
+    </div>
+    <!-- Demo cursor overlay for clickable nodes demo -->
+    <div id="demo-cursor" class="demo-cursor" aria-hidden="true">
+      <svg width="18" height="26" viewBox="0 0 18 26" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 2 L10 16 L7 17 L9 23 L6.5 24 L4.5 18 L2 19 Z" fill="#ffffff" stroke="#000000" stroke-width="1" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
     <a href="profile.html" id="join-kr-button-fixed">
       <img src="static/img/community_logo_kr_white.png" alt="Join KR" />
       <!-- <span>JOIN KR</span> -->
@@ -1001,4 +1027,112 @@
       </div>
     </div>
   </body>
+  
+  <!-- Welcome Overlay -->
+  <div id="welcome-overlay" class="welcome-overlay" aria-modal="true" role="dialog" hidden>
+    <div class="welcome-modal" role="document">
+      <div class="welcome-copy">
+        <h2 class="welcome-heading">Welcome to the KR Network</h2>
+        <p class="welcome-sub">KR is a grassroots community platform built by creatives, for creatives.</p>
+        <div class="welcome-body">
+          <p>🌐 Social platforms today are no longer built for creatives to grow &amp; be seen, KR is a community platform &amp; network where we artists can found for what we do, rather than who we are.</p>
+
+          <p><strong>How KR works:</strong></p>
+          <ul>
+            <li><strong>Be Discovered:</strong> Make an account &amp; connect with others to get seen on our network map &amp; discover feed.</li>
+            <li><strong>Collaborate:</strong> Check the collaboration page to see what upcoming opportunities have been posted by others on the network.</li>
+            <li><strong>Platform Your Community:</strong> Connect with your friends to share your audience with them.</li>
+          </ul>
+
+          <p>The website is live, and always growing. One thing will never change: it will always belong to the creatives.</p>
+
+          <p class="welcome-beta"><strong>Beta</strong> — This version of the KR is for development purposes, and is not representative of our final mission yet. Right now we are London only. New updates coming...</p>
+        </div>
+        <div class="welcome-controls">
+          <label class="welcome-toggle">
+            <input type="checkbox" id="welcome-dont-show" class="welcome-checkbox" />
+            <span>Don’t see this again</span>
+          </label>
+          <button id="welcome-enter-btn" class="welcome-enter-btn" type="button">ENTER</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Welcome overlay controller
+    (function() {
+      const WELCOME_SEEN_KEY = 'kr_welcome_seen_v1_6';
+      const SESSION_CLOSED_KEY = 'kr_welcome_closed_session_v1_6';
+      const overlay = document.getElementById('welcome-overlay');
+      const enterBtn = document.getElementById('welcome-enter-btn');
+      const dontShow = document.getElementById('welcome-dont-show');
+
+      function closeWelcome() {
+        try {
+          if (dontShow && dontShow.checked) {
+            localStorage.setItem(WELCOME_SEEN_KEY, '1');
+          }
+          sessionStorage.setItem(SESSION_CLOSED_KEY, '1');
+        } catch (e) { /* ignore storage errors */ }
+
+        overlay.classList.remove('visible');
+        setTimeout(() => {
+          overlay.hidden = true;
+          // Signal other scripts (e.g., hints) to proceed
+          window.__krWelcomeClosed = true;
+          window.dispatchEvent(new Event('kr_welcome_closed'));
+        }, 200);
+      }
+
+      function showWelcome() {
+        if (!overlay) return;
+        overlay.hidden = false;
+        overlay.classList.add('visible');
+        setTimeout(() => { if (enterBtn) enterBtn.focus(); }, 50);
+        if (enterBtn) enterBtn.addEventListener('click', closeWelcome, { once: true });
+        document.addEventListener('keydown', function onKey(e){
+          if (e.key === 'Escape' && !overlay.hidden) { closeWelcome(); document.removeEventListener('keydown', onKey); }
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        let seen = false;
+        try { seen = localStorage.getItem(WELCOME_SEEN_KEY) === '1'; } catch(e) { seen = false; }
+        const search = (typeof window !== 'undefined' && window.location) ? window.location.search : '';
+        const hasAnyQuery = search && search.length > 1;
+        const hasProfileQuery = new URLSearchParams(search).has('profile');
+        window.__krHasQueryOnLoad = !!hasAnyQuery;
+        window.__krHasProfileOnLoad = !!hasProfileQuery;
+        if (seen || hasAnyQuery) {
+          // Already seen – immediately allow downstream animations
+          window.__krWelcomeClosed = true;
+          window.dispatchEvent(new Event('kr_welcome_closed'));
+        } else {
+          window.__krWelcomeClosed = false;
+          showWelcome();
+        }
+      });
+
+      // Expose a safe controller for other scripts (e.g., show after profile modal closes)
+      window.krWelcomeControl = {
+        show: showWelcome,
+        maybeShowAfterProfileClose: function() {
+          try {
+            const seen = localStorage.getItem(WELCOME_SEEN_KEY) === '1';
+            const closedThisSession = sessionStorage.getItem(SESSION_CLOSED_KEY) === '1';
+            if (seen || closedThisSession) return; // Respect user choice + only once per session
+            if (window.__krHasProfileOnLoad) {
+              // Temporarily pause hints if they already started
+              window.__krWelcomeClosed = false;
+              showWelcome();
+            }
+          } catch (e) {
+            // On storage error, behave conservatively and show once
+            if (window.__krHasProfileOnLoad) showWelcome();
+          }
+        }
+      };
+    })();
+  </script>
 </html>

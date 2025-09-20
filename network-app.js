@@ -77,6 +77,7 @@ const visionCircle = document.getElementById('vision-circle-overlay');
 const visionBtn = document.getElementById('vision-mode-btn');
 const nodesInVision = new Set();
 let visionMediaGroup = null; // A D3 selection for the <g> container for all vision media
+let savedTransformBeforeVision = null; // Stores the zoom/pan before entering vision
 
 // --- END Vision Mode ---
 
@@ -171,23 +172,26 @@ async function initNetwork() {
     }, 400); // overlay fade-out starts a bit earlier now
   }
 
-  // Create nodes and links for the network
-  nodes = allUsers.map(user => ({
+  // Filter: only include users with a non-empty biography
+  const visibleUsers = allUsers.filter(u => typeof u.bio === 'string' && u.bio.trim().length > 0);
+  const visibleEmails = new Set(visibleUsers.map(u => u.email));
+
+  // Create nodes for visible users only
+  nodes = visibleUsers.map(user => ({
     id: user.email,
     title: user.title || user.email,
     avatar: user.avatar || 'static/img/default-avatar.png'
   }));
 
+  // Create links only between visible users (mutual connections)
   links = [];
-  allUsers.forEach(user => {
+  visibleUsers.forEach(user => {
     if (user.connections) {
       user.connections.forEach(targetEmail => {
-        const targetUser = allUsers.find(u => u.email === targetEmail);
-        if (targetUser && targetUser.connections?.includes(user.email)) {
-          links.push({
-            source: user.email,
-            target: targetEmail
-          });
+        if (!visibleEmails.has(targetEmail)) return; // target must be visible
+        const targetUser = visibleUsers.find(u => u.email === targetEmail);
+        if (targetUser && Array.isArray(targetUser.connections) && targetUser.connections.includes(user.email)) {
+          links.push({ source: user.email, target: targetEmail });
         }
       });
     }
@@ -761,7 +765,7 @@ function showProfileModal(user) {
   practicesSection.className = 'practices-section';
   let practicesHTML = `<div class="practices-title"><strong>KEYWORDS:</strong></div><div class="practices-pills">`;
   if (Array.isArray(user.practices) && user.practices.length > 0) {
-    practicesHTML += user.practices.map(prac => `<span class="practice-pill-keyword">${prac.charAt(0).toUpperCase() + prac.slice(1)}</span>`).join('');
+    practicesHTML += user.practices.map(prac => `<span class="practice-pill-keyword" data-practice="${prac}">${prac.charAt(0).toUpperCase() + prac.slice(1)}</span>`).join('');
   } else {
     practicesHTML += '<span class="no-practices">No practices listed</span>';
   }
@@ -773,6 +777,32 @@ function showProfileModal(user) {
   } else {
     popupContent.appendChild(practicesSection);
   }
+
+  // Make practice pills interactive: apply filter, close modal, and highlight results
+  practicesSection.querySelectorAll('.practice-pill-keyword').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const practiceRaw = pill.getAttribute('data-practice') || pill.textContent.trim();
+      if (!practiceRaw) return;
+
+      // Clear all existing filters and search first
+      selectedPractices = [];
+      searchTerm = '';
+      if (searchInput) searchInput.value = '';
+
+      // Apply only the clicked practice
+      selectedPractices = [practiceRaw];
+
+      // Update UI state and results
+      renderFilterChips();
+      updateClearFiltersBtn();
+      highlightMatchingNodes();
+
+      // Close the profile popup to reveal the network
+      closePopup();
+    });
+  });
 
   // Add share modal if not present
   let shareModal = document.getElementById('share-modal');
@@ -838,6 +868,51 @@ function showProfileModal(user) {
     };
   });
 
+  // Make embed block text rows clickable to open the block link
+  // Enhance current rows with pointer cursor and a11y if they have a link
+  const embedRows = blockContainer.querySelectorAll('.block.block-embed .block-text-kebab-row');
+  embedRows.forEach(row => {
+    const kebab = row.closest('.block')?.querySelector('.kebab-btn');
+    const link = kebab?.getAttribute('data-link');
+    if (link) {
+      row.style.cursor = 'pointer';
+      row.setAttribute('role', 'button');
+      row.setAttribute('tabindex', '0');
+      row.dataset.link = link;
+    }
+  });
+
+  // Add delegated handlers once per container instance
+  if (!blockContainer.__clickableRowHandlersAdded) {
+    blockContainer.addEventListener('click', (e) => {
+      const row = e.target.closest('.block-text-kebab-row');
+      if (!row) return;
+      // Ignore clicks on the kebab share button
+      if (e.target.closest('.kebab-btn')) return;
+      const block = row.closest('.block');
+      if (!block || !block.classList.contains('block-embed')) return;
+      const link = row.dataset.link || block.querySelector('.kebab-btn')?.getAttribute('data-link');
+      if (link) {
+        window.open(link, '_blank', 'noopener');
+      }
+    });
+
+    blockContainer.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const row = e.target.closest('.block-text-kebab-row');
+      if (!row) return;
+      const block = row.closest('.block');
+      if (!block || !block.classList.contains('block-embed')) return;
+      const link = row.dataset.link || block.querySelector('.kebab-btn')?.getAttribute('data-link');
+      if (link) {
+        e.preventDefault();
+        window.open(link, '_blank', 'noopener');
+      }
+    });
+
+    blockContainer.__clickableRowHandlersAdded = true;
+  }
+
   // Copy link handler
   shareModal.querySelector('.share-modal-copy').onclick = () => {
     const link = shareModal.getAttribute('data-link');
@@ -866,6 +941,33 @@ function showProfileModal(user) {
 
   // Show the popup
   popupContainer.style.display = 'flex';
+
+  // --- Scroll Indicator: start animation and hide-on-interaction ---
+  const scrollIndicator = popupContent.querySelector('.scroll-indicator');
+  if (scrollIndicator) {
+    // Reset visibility and retrigger animation
+    scrollIndicator.classList.remove('hidden');
+    scrollIndicator.classList.remove('fly-out');
+    // Force reflow to restart animation reliably
+    // eslint-disable-next-line no-unused-expressions
+    scrollIndicator.offsetHeight;
+    scrollIndicator.classList.add('animate');
+
+    // Hide on first actual scroll down within popup
+    const hideOnScroll = () => {
+      if (popupContent.scrollTop > 0) {
+        scrollIndicator.classList.add('fly-out');
+        const onFlyOutEnd = () => {
+          scrollIndicator.classList.remove('fly-out');
+          scrollIndicator.classList.add('hidden');
+          scrollIndicator.removeEventListener('animationend', onFlyOutEnd);
+        };
+        scrollIndicator.addEventListener('animationend', onFlyOutEnd);
+        popupContent.removeEventListener('scroll', hideOnScroll);
+      }
+    };
+    popupContent.addEventListener('scroll', hideOnScroll);
+  }
 
   // Add scroll listener (avoid duplicates)
   if (scrollableModalContentElement && !scrollableModalContentElement.hasScrollListener) {
@@ -912,6 +1014,14 @@ const closePopup = () => {
     clearFiltersBtn.classList.add('active');
     clearFiltersBtn.style.display = 'block';
   }
+
+  // If user arrived via a profile deep link, optionally show the welcome overlay once per session
+  try {
+    if (window.__krHasProfileOnLoad && window.krWelcomeControl && typeof window.krWelcomeControl.maybeShowAfterProfileClose === 'function') {
+      // Defer slightly to allow UI to settle
+      setTimeout(() => window.krWelcomeControl.maybeShowAfterProfileClose(), 100);
+    }
+  } catch (e) { /* no-op */ }
 };
 
 document.getElementById('popup-background').addEventListener('click', closePopup);
@@ -1187,8 +1297,11 @@ function highlightMatchingNodes() {
              match = true;
         }
         // Practice filter logic
-        if (!match && selectedPractices.length > 0 && Array.isArray(allUsers[i]?.practices)) {
-             match = allUsers[i].practices.some(p => selectedPractices.includes(p));
+        if (!match && selectedPractices.length > 0) {
+             const user = allUsers.find(u => u.email === node.id);
+             if (Array.isArray(user?.practices)) {
+               match = user.practices.some(p => selectedPractices.includes(p));
+             }
         }
         
         if (match) {
@@ -1585,6 +1698,144 @@ window.addEventListener('load', async () => {
     }
   }
   // --- END: New code for deep linking ---
+
+// --- START: One-time Interaction Hint + Auto-demo ---
+try {
+    const lsKey = 'kr_interaction_hint_seen_v1';
+    const hasSeen = localStorage.getItem(lsKey) === '1';
+    const hintEl = document.getElementById('interaction-hint');
+    const clickHintEl = document.getElementById('clickable-hint');
+    const demoCursorEl = document.getElementById('demo-cursor');
+  function startHints() {
+    if (hasSeen || !hintEl) return;
+      const isMobile = /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigator.userAgent) || window.innerWidth <= 768;
+      const hintText = isMobile ? 'Drag to pan • Pinch to zoom' : 'Drag to pan • Scroll to zoom';
+      const textEl = hintEl.querySelector('.hint-text');
+      if (textEl) textEl.textContent = hintText;
+
+      // Show hint
+      hintEl.classList.add('show');
+
+      // Cancel/hide on first user interaction
+      const cancelHint = () => {
+        hintEl.classList.add('hide');
+        setTimeout(() => { hintEl.style.display = 'none'; }, 180);
+        window.removeEventListener('wheel', cancelAll, { passive: true });
+        window.removeEventListener('mousedown', cancelAll);
+        window.removeEventListener('touchstart', cancelAll, { passive: true });
+        localStorage.setItem(lsKey, '1');
+      };
+      const cancelAll = () => {
+        stopAutoDemo();
+        cancelHint();
+      };
+      window.addEventListener('wheel', cancelAll, { passive: true });
+      window.addEventListener('mousedown', cancelAll);
+      window.addEventListener('touchstart', cancelAll, { passive: true });
+
+      // Auto-demo: gentle pan+zoom using real D3 zoom
+      const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let demoTimer = null;
+      let demoActive = false;
+      function stopAutoDemo() {
+        if (demoTimer) { clearTimeout(demoTimer); demoTimer = null; }
+        demoActive = false;
+      }
+
+      if (!prefersReduced) {
+        const svg = d3.select('svg');
+        const svgNode = svg.node();
+        if (svgNode && typeof zoomBehavior !== 'undefined' && zoomBehavior) {
+          demoActive = true;
+          // Capture current transform
+          const currentTransform = d3.zoomTransform(svgNode);
+
+          const w = svgNode.clientWidth;
+          const h = svgNode.clientHeight;
+          const targetScale = Math.min(2.0, Math.max(1.2, currentTransform.k * 1.35));
+
+          // Two-step demo: zoom in slightly toward center-right, then pan a bit
+          const step1 = () => {
+            const cx = w * 0.6;
+            const cy = fixedHeaderHeight + (h - fixedHeaderHeight) * 0.5;
+            const t1 = d3.zoomIdentity.translate(
+              cx - (cx - currentTransform.x) * (targetScale / currentTransform.k),
+              cy - (cy - currentTransform.y) * (targetScale / currentTransform.k)
+            ).scale(targetScale);
+            svg.transition().duration(900).ease(d3.easeCubicOut).call(zoomBehavior.transform, t1);
+          };
+          const step2 = () => {
+            const tNow = d3.zoomTransform(svgNode);
+            const dx = -60; // pan left slightly
+            const dy = -20; // pan up slightly
+            const t2 = d3.zoomIdentity.translate(tNow.x + dx, tNow.y + dy).scale(tNow.k);
+            svg.transition().duration(800).ease(d3.easeCubicOut).call(zoomBehavior.transform, t2)
+              .on('end', () => { /* keep final transform */ });
+          };
+
+          step1();
+          demoTimer = setTimeout(() => { if (demoActive) step2(); }, 1000);
+        }
+      }
+      // After the pan/zoom demo, show a second hint for clickable nodes and cursor demo
+      setTimeout(() => {
+        if (!clickHintEl) return;
+        const clickText = 'Click nodes to open profile';
+        const clickTextEl = clickHintEl.querySelector('.hint-text');
+        if (clickTextEl) clickTextEl.textContent = clickText;
+        clickHintEl.classList.add('show');
+
+        // Demo cursor motion to a visible node, then click pulse
+        const svg = d3.select('svg');
+        const svgNode = svg.node();
+        const g = d3.select('g.network-container').node();
+        const isMobile = /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        if (!svgNode || !g || !demoCursorEl || isMobile) return; // desktop only
+        const ctm = g.getScreenCTM();
+
+        // Find a node element on screen
+        const nodeSel = d3.selectAll('.node').nodes();
+        if (nodeSel.length > 0) {
+          const target = nodeSel[0];
+          const d = d3.select(target).datum();
+          if (d && ctm) {
+            const pt = svgNode.createSVGPoint();
+            pt.x = d.x; pt.y = d.y;
+            const screenPos = pt.matrixTransform(ctm);
+            // Position and show the cursor
+            demoCursorEl.style.left = (screenPos.x + 6) + 'px';
+            demoCursorEl.style.top = (screenPos.y + 6) + 'px';
+            demoCursorEl.style.display = 'block';
+            demoCursorEl.style.opacity = '1';
+
+            // Pulse animation by CSS transitions (simple scale via transform)
+            demoCursorEl.animate([
+              { transform: 'translate(-2px, -2px) scale(1)', offset: 0 },
+              { transform: 'translate(-2px, -2px) scale(0.92)', offset: 0.5 },
+              { transform: 'translate(-2px, -2px) scale(1)', offset: 1 }
+            ], { duration: 500, easing: 'ease-in-out' });
+
+            // Hide click hint and cursor after a short moment
+            setTimeout(() => {
+              clickHintEl.classList.add('hide');
+              setTimeout(() => { clickHintEl.style.display = 'none'; }, 180);
+              demoCursorEl.style.display = 'none';
+            }, 1200);
+          }
+        }
+      }, prefersReduced ? 200 : 1900);
+  }
+
+  // Gate hint start until welcome overlay is closed
+  if (!window.__krWelcomeClosed) {
+    window.addEventListener('kr_welcome_closed', startHints, { once: true });
+  } else {
+    startHints();
+  }
+  } catch (e) {
+    console.warn('Hint setup failed:', e);
+  }
+  // --- END: One-time Interaction Hint + Auto-demo ---
 
   // Animated Placeholder Logic
   const searchInput = document.getElementById('network-search-input');
@@ -2049,6 +2300,29 @@ function toggleVisionMode() {
     visionBtn.classList.toggle('active', isVisionModeActive);
 
     if (isVisionModeActive) {
+        // Save current transform and gently zoom in toward the center
+        const svg = d3.select('svg');
+        const svgNode = svg.node();
+        if (svgNode && typeof zoomBehavior !== 'undefined' && zoomBehavior) {
+            savedTransformBeforeVision = d3.zoomTransform(svgNode);
+
+            const w = svgNode.clientWidth;
+            const h = svgNode.clientHeight;
+            const currentTransform = savedTransformBeforeVision;
+            const targetScale = Math.min(2.0, Math.max(1.2, currentTransform.k * 1.4));
+
+            if (targetScale > currentTransform.k + 0.02) {
+                const cx = w * 0.5;
+                const cy = fixedHeaderHeight + (h - fixedHeaderHeight) * 0.5;
+                const t = d3.zoomIdentity
+                  .translate(
+                    cx - (cx - currentTransform.x) * (targetScale / currentTransform.k),
+                    cy - (cy - currentTransform.y) * (targetScale / currentTransform.k)
+                  )
+                  .scale(targetScale);
+                svg.transition().duration(700).ease(d3.easeCubicOut).call(zoomBehavior.transform, t);
+            }
+        }
         updateVisionCircleSize(); // Set initial size based on current zoom
         simulation.force("magnify", magnifyingForce); // Add the force
         updateVisionMode();
@@ -2063,6 +2337,16 @@ function toggleVisionMode() {
         visionCircle.style.width = '';
         visionCircle.style.height = '';
         visionCircle.style.transform = '';
+        // Restore the previous zoom/pan transform if it was saved
+        const svg = d3.select('svg');
+        const svgNode = svg.node();
+        if (svgNode && savedTransformBeforeVision && typeof zoomBehavior !== 'undefined' && zoomBehavior) {
+            svg.transition().duration(650).ease(d3.easeCubicOut)
+              .call(zoomBehavior.transform, savedTransformBeforeVision)
+              .on('end', () => { savedTransformBeforeVision = null; });
+        } else {
+            savedTransformBeforeVision = null;
+        }
     }
     // Reheat the simulation to apply/remove the force
     simulation.alpha(0.3).restart();

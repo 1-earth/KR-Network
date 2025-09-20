@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>User Profile - KR</title>
   <link rel="stylesheet" href="styles.css">
   <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css" rel="stylesheet" />
@@ -45,7 +45,7 @@
     
     .progress-bar-text {
       font-size: 0.8rem;
-      color: #858585;
+      color: #444444;
     }
 
     .profile-progress-section {
@@ -199,9 +199,13 @@
       overflow-y: auto;
     }
 
+    
+    .logout-container { display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0; }
+    .logout-title { margin: 0; font-size: 1.4rem; font-weight: bold; color: #ffffff; }
+
     input,
     textarea {
-      width: 100%;
+      width: 12%;
       /* margin-top: 0.5rem; */
       /* margin-bottom: 1rem; */
       /* padding: 0.5rem; */
@@ -259,6 +263,7 @@
       object-fit: cover;
       display: block;
       margin: auto;
+      border: 0.5px solid #6b6b6b;
     }
 
     .auth-section {
@@ -809,12 +814,14 @@
       margin-bottom: 0 !important;
       font-size: 14px;
       font-weight: bold;
+      margin-top: 40px;
     }
 
     .input-feild-title-text span{
       color: #ff0000;
     }
 
+  
     .popup-join-btn {
       background-color: #0000ff;
       /* Bright blue JOIN button */
@@ -836,6 +843,20 @@
     .popup-join-btn:hover {
       background-color: #0000cc;
       /* Darker blue on hover */
+    }
+    
+
+    /* Login button variant: orange & smaller text */
+    #welcome-login-btn {
+      background-color: initial;
+      font-size: 14px;
+      padding: 8px 8px;
+      font-weight: normal;
+      font-size: 0.7rem;
+      color: #FF8000;
+    }
+    #welcome-login-btn:hover {
+      color: #00f;
     }
 
     #practices-buttons{
@@ -1154,6 +1175,118 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
+
+    /* Onboarding Modal */
+    .onboard-overlay {
+      position: fixed;
+      top: 0px;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 10010;
+      overflow: hidden; /* prevent horizontal scroll */
+    }
+    .onboard-overlay.visible { display: flex; }
+    .onboard-modal {
+      width: 100%;
+      margin: 7px;
+      height: 95%;
+      border-radius: 10px;
+      background: #e6e6e6;
+      color: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden; /* keep footer pinned */
+      padding: 15px;
+      box-sizing: border-box;
+    }
+    .onboard-header {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 12px 0 12px;
+      position: relative;
+    }
+    @media (max-width: 768px) {
+      .onboard-title {
+        max-width: 70vw;
+    }
+  }
+
+    .onboard-back {
+      background: none;
+      border: none;
+      color: #000;
+      font-size: 28px;
+      cursor: pointer;
+      padding: 0 6px;
+      line-height: 1;
+      visibility: hidden;
+    }
+    .onboard-title {
+      margin: 0;
+      text-align: center;
+      font-weight: bold;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 24px);
+      pointer-events: none;
+    }
+    .onboard-step-title{ font-weight: bold; font-size: 18px; text-align: center; margin: 6px 0 2px 0; }
+    .onboard-body {
+      width: 100%;
+      max-width: 420px;
+      padding: 10px 12px 20px 12px;
+      flex: 1; /* take remaining height */
+      overflow-y: auto; /* scroll content, not footer */
+      overflow-x: hidden; /* prevent horizontal scroll */
+    }
+    .onboard-avatar {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 0.5px solid #6b6b6b;
+      display: block;
+      margin: 10px auto;
+    }
+    @media (min-width: 768px) {
+      .onboard-avatar {
+        width: 80px;
+        height: 80px;
+      }
+    }
+    .onboard-upload-btn {
+      display: block;
+      margin: 6px auto 8px auto;
+      background: #8d8d8d;
+      font-size: 14px;
+      padding: 6px 12px;
+      border-radius: 20px;
+    }
+    /* Ensure cropping modal overlays onboarding */
+    .cropper-container { z-index: 10060 !important; }
+    .onboard-input { width: 100%; }
+    .onboard-hint { font-size: 12px; color: #6e6e6e; margin-top: 4px; }
+    .onboard-counter { font-size: 12px; color: #6e6e6e; float: right; }
+    .onboard-practices { display: flex; flex-wrap: wrap; gap: 0 8px; margin-top: 6px; font-size: 14px; }
+    .onboard-footer { margin-top: auto; background: #e6e6e6; width: 100%; max-width: 420px; }
+    .onboard-actions { background: #e6e6e6; width: 100%; display: flex; gap: 10px; justify-content: space-between;  }
+    .onboard-next { flex: 1; }
+    .onboard-skip { background: #999; }
+    .onboard-steps { margin: 6px auto 12px auto; display: flex; gap: 6px; justify-content: center; }
+    .onboard-dot { width: 8px; height: 8px; border-radius: 50%; background: #aaa; }
+    .onboard-dot.active { background: #0000ff; }
+    /* Disabled state for Continue button (steps 1-3) */
+    #onboard-next:disabled { background: #bbb; color: #eee; cursor: not-allowed; }
   </style>
 </head>
 
@@ -1206,10 +1339,15 @@
         </div>
       </div>
       <p class="background-text center-align" id="user-info"></p>
+
+      <div class="logout-container">
+        <h3 class="logout-title">YOUR PROFILE:</h3>
+        <button id="logout-btn" style="display: none;">LOG OUT</button>
+      </div>
       
       <div class="profile-progress-section" id="profileProgressSection">
         <span class="close-progress-btn" id="closeProgressSectionBtn">&times;</span>
-        <p class="center-align profile-progress-title">Finish Building Your Profile!</p>
+        <p class="center-align profile-progress-title">You Are On Track To Building Your Profile!</p>
         <div class="progress-bar-container">
           <div class="progress-bar">
             <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
@@ -1219,11 +1357,13 @@
             <div class="progress-circle" id="progressCircle4" style="left: 100%;"></div>
           </div>
         </div>
-        <p class="progress-bar-text center-align" id="progressTextDetails">Fill in your details</p>
+        <p class="progress-bar-text center-align" id="progressTextDetails">Please fill in your details below to get started</p>
         <p class="progress-bar-text center-align" id="progressTextConnect" style="display: none;">Connect with others</p>
-        <p class="progress-bar-text center-align" id="progressTextBuild" style="display: none;">Build your profile page</p>
+        <p class="progress-bar-text center-align" id="progressTextBuild" style="display: none;">Build your page</p>
         <p class="progress-bar-text center-align" id="progressTextComplete" style="display: none;">🎉 You're all set up!</p>
       </div>
+
+     
 
       <div class="collapsible-section" id="profile-collapsible-section">
         <div class="collapsible-header">
@@ -1231,7 +1371,7 @@
             <img id="collapsed-avatar-preview" class="collapsed-avatar" src="static/img/default-avatar.png">
             <div class="collapsed-text">
                 <strong id="collapsed-title">YOUR PROFILE</strong>
-                <small>Manage Your profile details</small>
+                <small>Manage Your Profile</small>
             </div>
             <span class="chevron"></span>
         </div>
@@ -1240,14 +1380,11 @@
 
           <div class="help-banner" data-help="profile-help-btn">
             <button class="help-icon" id="profile-help-btn">?</button>
-            <p class="help-banner-text">How do I use this section?</p>
+            <p class="help-banner-text">⬇ How do I use this section?</p>
           </div>
 
           <div class="collapsible-content-inner">
-            <!-- Logout button -->
-                          <div style="text-align: center; margin-bottom: 1rem;">
-                <button id="logout-btn" style="display: none;">LOG OUT/SWITCH ACCOUNT</button>
-              </div>
+            
             <!-- Re-introducing the main avatar and title for the expanded view -->
           <img id="avatar-preview" class="avatar-preview" src="static/img/default-avatar.png" alt="Avatar" />
           <div id="profile-title-display" class="center-align" style="margin-bottom: 10px; font-weight: bold; font-size: 1.1em;"></div>
@@ -1288,8 +1425,8 @@
         <div class="collapsible-header">
           <span class="header-step-number">2</span>
           <div class="collapsed-text">
-              <strong>YOUR CONNECTIONS</strong>
-              <small>Manage Your Connections With Friends</small>
+              <strong>Add Your Connections</strong>
+              <small>To Position yourself in the network, connect with others you've worked with.</small>
               
           </div>
           <span class="chevron"></span>
@@ -1297,7 +1434,7 @@
         <div class="collapsible-content">
           <div class="help-banner" data-help="connections-help-btn">
             <button class="help-icon" id="connections-help-btn">?</button>
-            <p class="help-banner-text">How do I use this section?</p>
+            <p class="help-banner-text">⬇ How do I use this section?</p>
           </div>
           <div class="collapsible-content-inner">
             <!-- Existing Connections Section Content -->
@@ -1315,12 +1452,12 @@
           <span class="header-step-number">3</span>
           <div class="collapsed-text line-height-1">
             <strong>Build Your Page</strong>
-            <small class="section-description">Arrange Your Blocks To Direct People To What You Do</small>
+            <small class="section-description">Add Links To Build Your Page, Show your work</small>
           </div>
           <span class="help-icon" data-section="links">?</span>
         </h2>
         <div id="blocks-container"></div>
-        <button class="center-align" id="add-block">+ Add Block</button>
+        <button class="center-align" id="add-block">+ Add Link</button>
       </div>
 
 
@@ -1328,13 +1465,13 @@
 
       <div class="modal" id="block-modal">
         <div class="modal-content">
-          <h3 id="modal-title">Add Block</h3>
+          <h3 id="modal-title">Add Link</h3>
           
           <div id="block-url-container">
             <p class="input-feild-title-text">URL:</p>
             <input type="url" id="block-link" placeholder="Paste a link to get started...">
             <div id="url-loading-indicator"></div>
-            <p id="url-instruction" style="font-size: 0.9em; color: #6e6e6e; margin-top: 8px; font-style: italic;">Enter a valid URL to continue with block creation</p>
+            <p id="url-instruction" style="font-size: 0.9em; color: #6e6e6e; margin-top: 8px; font-style: italic;">Enter a valid URL to continue with link creation</p>
             <div id="embed-options" style="margin-top:8px; display:none;">
               <p class="input-feild-title-text">Or, Embed:</p>
               <button id="embed-youtube-btn" class="secondary" type="button" disabled>Embed YouTube</button>
@@ -1464,6 +1601,31 @@
   <script type="module" src="profile-app.js"></script>
   <script src="mobile-nav.js"></script>
 
+  <!-- Onboarding Modal (appears for first-time/incomplete profiles) -->
+  <div id="onboard-overlay" class="onboard-overlay" aria-modal="true" role="dialog">
+    <div class="onboard-modal">
+      <div class="onboard-header">
+        <button id="onboard-back" class="onboard-back" aria-label="Back">&#x2039;</button>
+        <div class="onboard-title">Welcome to KR, let’s create your profile!:</div>
+      </div>
+      <div class="onboard-body" id="onboard-body">
+        <!-- Step content injected by JS -->
+      </div>
+      <div class="onboard-footer">
+        <div class="onboard-actions">
+          <button id="onboard-skip" class="onboard-skip" type="button" style="display:none;">Skip for now</button>
+          <button id="onboard-next" class="onboard-next" type="button">Continue</button>
+        </div>
+        <div class="onboard-steps" id="onboard-steps">
+          <div class="onboard-dot" data-step="0"></div>
+          <div class="onboard-dot" data-step="1"></div>
+          <div class="onboard-dot" data-step="2"></div>
+          <div class="onboard-dot" data-step="3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="notification-popup"
     style="display:none;position:fixed;top:32px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:14px 32px;border-radius:8px;box-shadow:0 2px 12px #0003;z-index:99999;font-size:1.1em;transition:opacity 0.3s;">
   </div>
@@ -1492,6 +1654,8 @@
           <h3>Join the movement, platform your own community. </h3>
           <p class="info-text-small">*Please note, the network is still in development, and only available in London.</p>
           <button id="welcome-start-btn" class="popup-start-btn">GET STARTED &rarr;</button><br>
+          <button id="welcome-login-btn" class="popup-join-btn" style="margin-top:0px;">Already have an account? Log In!</button>
+          <!-- <p class="info-text2">By signing up with Google, you accept our <a href="terms.html" target="_blank" class="popup-link">terms &amp; conditions</a>.</p> -->
         </div>
         <div class="welcome-slide" id="welcome-slide-2">
             <a href="#" id="back-to-slide-1" class="welcome-back-btn">&lt;- back</a>
@@ -1529,7 +1693,7 @@
             </ol>
             <p class="ready-text">Ready?</p>
             <button id="welcome-join-btn" class="popup-join-btn return-user">CREATE YOUR ACCOUNT &rarr;</button>
-            <p class="info-text2">Log in with Google</p>
+            <p class="info-text2">By signing up with Google, you accept our <a href="terms.html" target="_blank" class="popup-link">terms &amp; conditions</a>.</p>
         </div>
       </div>
     </div>

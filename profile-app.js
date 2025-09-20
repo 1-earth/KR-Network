@@ -1,5 +1,258 @@
 // app.js
 import Cropper from "https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.esm.js";
+// --- Onboarding Modal Controller ---
+const OB_SEEN_KEY = 'kr_profile_onboard_step_v1';
+const onboardOverlay = document.getElementById('onboard-overlay');
+const onboardBody = document.getElementById('onboard-body');
+const onboardTitle = document.getElementById('onboard-title');
+const onboardBack = document.getElementById('onboard-back');
+const onboardNext = document.getElementById('onboard-next');
+const onboardSkip = document.getElementById('onboard-skip');
+const onboardDots = document.querySelectorAll('.onboard-dot');
+
+let onboardStep = 0; // 0..3
+
+function normalizeForValidation(value, platform){
+  try {
+    // reuse existing normalizer if available below (hoisted), else basic
+    if (typeof normalizeSocialUrl === 'function') return normalizeSocialUrl(value, platform);
+  } catch(_) {}
+  return value || '';
+}
+
+function hasAnyValidSocial() {
+  const ig = document.getElementById('ob-instagram')?.value || '';
+  const yt = document.getElementById('ob-youtube')?.value || '';
+  const tk = document.getElementById('ob-tiktok')?.value || '';
+  const candidates = [
+    ['instagram', ig],
+    ['youtube', yt],
+    ['tiktok', tk]
+  ].map(([p,v]) => normalizeForValidation(v, p)).filter(Boolean);
+  for (const v of candidates) {
+    const val = v.trim();
+    if (!val) continue;
+    try { new URL(val.startsWith('http') ? val : `https://${val}`); return true; } catch(_) {}
+  }
+  return false;
+}
+
+function setOnboardDots(step){
+  onboardDots.forEach((d,i)=>d.classList.toggle('active', i===step));
+}
+
+function validateStep(data){
+  // Prefer live inputs on the current step; fall back to the latest doc snapshot
+  const doc = window.firebaseUtils?.currentUserDoc || data || {};
+  switch(onboardStep){
+    case 0: {
+      const v = (document.getElementById('ob-title')?.value || doc.title || '').trim();
+      return v.length > 0;
+    }
+    case 1: {
+      const v = (document.getElementById('ob-bio')?.value || doc.bio || '').trim();
+      const len = v.length;
+      return len>=5 && len<=280;
+    }
+    case 2: {
+      // Use the module-scoped selectedPractices state if available
+      if (Array.isArray(selectedPractices) && selectedPractices.length>0) return true;
+      return Array.isArray(doc.practices) && doc.practices.length>0;
+    }
+    case 3: return true; // socials optional
+    default: return false;
+  }
+}
+
+function renderStep(){
+  setOnboardDots(onboardStep);
+  onboardBack.style.visibility = onboardStep>0 ? 'visible' : 'hidden';
+  onboardSkip.style.display = onboardStep===3 ? 'inline-block' : 'none';
+  const doc = window.firebaseUtils?.currentUserDoc || {};
+  if (onboardStep===0){
+    onboardBody.innerHTML = `
+      <img id="ob-avatar" class="onboard-avatar" src="${doc.avatar||'static/img/default-avatar.png'}" alt="Avatar">
+      <div class="onboard-step-title">Your Info</div>
+      <div class="center-align" style="margin-bottom:6px;">Enter your name and add a profile photo.</div>
+      <button id="ob-avatar-btn" class="onboard-upload-btn" type="button">Change Photo</button>
+      <div class="input-feild-title"><p class="input-feild-title-text">Display Name<span>*</span></p></div>
+      <input id="ob-title" class="input-feild onboard-input" type="text" placeholder="Profile Title" value="${doc.title||''}">
+      <div class="onboard-hint" id="ob-title-hint"></div>
+    `;
+    const titleInput = document.getElementById('ob-title');
+    titleInput.addEventListener('input', ()=> { debouncedAutoSave(); localStorage.setItem(OB_SEEN_KEY, String(onboardStep)); updateValidation(); });
+    // Wire avatar change to existing input
+    const obBtn = document.getElementById('ob-avatar-btn');
+    if (obBtn && avatarInput) {
+      obBtn.onclick = ()=> {
+        // ensure change fires even if picking same file
+        try { avatarInput.value=''; } catch(_) {}
+        avatarInput.click();
+      };
+    }
+    const obAvatar = document.getElementById('ob-avatar');
+    if (obAvatar && avatarPreview) {
+      const sync = ()=> { obAvatar.src = avatarPreview.src; };
+      obAvatar.src = avatarPreview.src;
+      avatarPreview.addEventListener('load', sync, { once: true });
+    }
+    // Keep underlying field in sync
+    const profileTitle = document.getElementById('profile-title');
+    if (profileTitle) titleInput.addEventListener('input', ()=> { profileTitle.value = titleInput.value; });
+  } else if (onboardStep===1){
+    const bioVal = (doc.bio||'');
+    const count = bioVal.trim().length;
+    const nameSource = (document.getElementById('ob-title')?.value || document.getElementById('profile-title')?.value || doc.title || '').trim();
+    onboardBody.innerHTML = `
+      <img class="onboard-avatar" src="${doc.avatar||'static/img/default-avatar.png'}" alt="Avatar">
+      <div class="onboard-step-title">Bio</div>
+      <div class="center-align" id="ob-bio-prompt"></div>
+      <div class="input-feild-title"><p class="input-feild-title-text">Bio<span>*</span></p></div>
+      <textarea id="ob-bio" class="input-feild onboard-input" rows="5" placeholder="Add your bio...">${bioVal}</textarea>
+      <div><span class="onboard-hint" id="ob-bio-hint"></span><span class="onboard-counter" id="ob-bio-count">${count}/280</span></div>
+    `;
+    const promptEl = document.getElementById('ob-bio-prompt');
+    const updatePrompt = () => {
+      const nm = (document.getElementById('ob-title')?.value || document.getElementById('profile-title')?.value || doc.title || '').trim();
+      promptEl.textContent = nm ? `So, ${nm}, your bio. What do you do?` : 'Enter your bio. What do you do?';
+    };
+    updatePrompt();
+    const titleField = document.getElementById('profile-title');
+    if (titleField) titleField.addEventListener('input', updatePrompt);
+    const bioInput = document.getElementById('ob-bio');
+    const bioCount = document.getElementById('ob-bio-count');
+    bioInput.addEventListener('input', ()=>{
+      const v = bioInput.value;
+      bioCount.textContent = `${v.trim().length}/280`;
+      if (v.length>280) bioInput.value = v.slice(0,280);
+      debouncedAutoSave(); localStorage.setItem(OB_SEEN_KEY, String(onboardStep)); updateValidation();
+    });
+    const bioField = document.getElementById('bio');
+    if (bioField) bioInput.addEventListener('input', ()=> { bioField.value = bioInput.value; });
+  } else if (onboardStep===2){
+    onboardBody.innerHTML = `
+      <img class="onboard-avatar" src="${doc.avatar||'static/img/default-avatar.png'}" alt="Avatar">
+      <div class="onboard-step-title">Creative Practices</div>
+      <div class="center-align">Select your creative practices</div>
+      <div class="input-feild-title"><p class="input-feild-title-text">Creative Practices<span>*</span></p></div>
+      <div id="ob-practices" class="onboard-practices"></div>
+      <div class="onboard-hint" id="ob-practices-hint"></div>
+    `;
+    const wrap = document.getElementById('ob-practices');
+    // Use existing PRACTICES and module-scoped selection state
+    const current = Array.isArray(selectedPractices) ? selectedPractices : (Array.isArray(doc.practices)?doc.practices:[]);
+    PRACTICES.forEach(pr => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'practice-pill' + (current.includes(pr) ? ' selected' : '');
+      btn.textContent = pr;
+      btn.onclick = () => {
+        if (selectedPractices.includes(pr)) {
+          selectedPractices = selectedPractices.filter(p=>p!==pr);
+        } else {
+          selectedPractices = [...selectedPractices, pr];
+        }
+        btn.classList.toggle('selected');
+        debouncedAutoSave(); localStorage.setItem(OB_SEEN_KEY, String(onboardStep)); updateValidation();
+      };
+      wrap.appendChild(btn);
+    });
+  } else if (onboardStep===3){
+    onboardBody.innerHTML = `
+      <img class="onboard-avatar" src="${doc.avatar||'static/img/default-avatar.png'}" alt="Avatar">
+      <div class="onboard-step-title">Socials</div>
+      <div class="center-align">Connect to your socials - so people can find out more about you</div>
+      <div class="input-feild-title"><p class="input-feild-title-text">Socials</p></div>
+      <input id="ob-instagram" class="input-feild onboard-input" type="url" placeholder="Instagram URL" value="${doc.instagram||''}">
+      <input id="ob-youtube" class="input-feild onboard-input" type="url" placeholder="YouTube URL" value="${doc.youtube||''}">
+      <input id="ob-tiktok" class="input-feild onboard-input" type="url" placeholder="TikTok URL" value="${doc.tiktok||''}">
+      <div class="onboard-hint">I recommend adding these now, but skipping won’t affect your setup.</div>
+    `;
+    const ig = document.getElementById('ob-instagram');
+    const yt = document.getElementById('ob-youtube');
+    const tk = document.getElementById('ob-tiktok');
+    const igField = document.getElementById('instagram');
+    const ytField = document.getElementById('youtube');
+    const tkField = document.getElementById('tiktok');
+    [
+      [ig, igField], [yt, ytField], [tk, tkField]
+    ].forEach(([a,b])=>{ if (a && b) a.addEventListener('input', ()=> { b.value = a.value; debouncedAutoSave(); updateValidation(); }); });
+    // Prepare footer buttons for Step 4
+    if (onboardNext) onboardNext.textContent = 'Finish';
+  }
+  updateValidation();
+}
+
+function updateValidation(){
+  const valid = validateStep();
+  // Default behavior for steps 0-2: disable when invalid
+  if (onboardStep !== 3) {
+    onboardNext.disabled = !valid;
+  }
+  // hints
+  if (onboardStep===0){
+    const v = (document.getElementById('ob-title')?.value||'').trim();
+    document.getElementById('ob-title-hint').textContent = v ? '' : 'Add your display name to continue.';
+  } else if (onboardStep===1){
+    const len = (document.getElementById('ob-bio')?.value||'').trim().length;
+    const hint = document.getElementById('ob-bio-hint');
+    hint.textContent = len<5 ? 'Say a little about what you do (min 5 chars).' : '';
+  } else if (onboardStep===2){
+  } else if (onboardStep===2){
+    const has = Array.isArray(selectedPractices) && selectedPractices.length>0;
+    const hint = document.getElementById('ob-practices-hint');
+    if (hint) hint.textContent = has ? '' : 'Pick at least one practice to get discovered.';
+  } else if (onboardStep===3){
+    // Toggle visibility: show Skip only by default; show Finish when any valid social is present
+    const showFinish = hasAnyValidSocial();
+    if (onboardNext) onboardNext.style.display = showFinish ? 'inline-block' : 'none';
+    if (onboardSkip) onboardSkip.style.display = showFinish ? 'none' : 'inline-block';
+  }
+}
+
+function go(step){
+  onboardStep = Math.max(0, Math.min(3, step));
+  renderStep();
+}
+
+onboardBack?.addEventListener('click', ()=> go(onboardStep-1));
+onboardNext?.addEventListener('click', ()=> {
+  if (!validateStep()) return;
+  if (onboardStep<3) { go(onboardStep+1); localStorage.setItem(OB_SEEN_KEY, String(onboardStep)); }
+  else { onboardOverlay.classList.remove('visible'); document.body.style.overflow = ''; }
+});
+onboardSkip?.addEventListener('click', ()=> { onboardOverlay.classList.remove('visible'); document.body.style.overflow=''; });
+
+function shouldShowOnboarding(data){
+  const d = data || window.firebaseUtils?.currentUserDoc || {};
+  const missingTitle = !(d.title && String(d.title).trim());
+  const missingBio = !((d.bio||'').trim().length>=5);
+  const missingPractices = !(Array.isArray(d.practices) && d.practices.length>0);
+  return missingTitle || missingBio || missingPractices;
+}
+
+function inferFirstIncompleteStep(d){
+  if (!(d.title && String(d.title).trim())) return 0;
+  if (!((d.bio||'').trim().length>=5)) return 1;
+  if (!(Array.isArray(d.practices)&&d.practices.length>0)) return 2;
+  return 3;
+}
+
+window.addEventListener('kr_profile_doc_updated', (e)=>{
+  const data = e.detail || {};
+  const isOpen = onboardOverlay.classList.contains('visible');
+  if (isOpen) {
+    // Do not auto-close while open; user must finish Step 4 (Continue/Skip)
+    updateValidation();
+    return;
+  }
+  if (shouldShowOnboarding(data)) {
+    onboardOverlay.classList.add('visible');
+    document.body.style.overflow='hidden';
+    const startStep = inferFirstIncompleteStep(data);
+    go(startStep);
+  }
+});
 
 // --- HELP MODAL LOGIC ---
 const helpIcons = document.querySelectorAll('.help-icon');
@@ -129,7 +382,8 @@ avatarInput.addEventListener("change", (e) => {
       modal.style.display = "flex";
       modal.style.justifyContent = "center";
       modal.style.alignItems = "center";
-      modal.style.zIndex = "10002";
+      // Ensure this sits above the onboarding overlay (z-index 10010)
+      modal.style.zIndex = "10050";
       
       modal.innerHTML = `<div style="background: white; padding: 1rem; border-radius: 8px; max-width: 90%; max-height: 90vh; overflow: auto;">
         <div style="max-height: 70vh; margin-bottom: 1rem;"><img id="crop-image" style="max-width: 100%; display: block;" /></div>
@@ -170,6 +424,11 @@ avatarInput.addEventListener("change", (e) => {
           
           // Update the preview
           avatarPreview.src = avatarUrl;
+          // If onboarding open, sync its avatar image
+          try {
+            const ob = document.getElementById('ob-avatar');
+            if (ob) ob.src = avatarUrl;
+          } catch (_) {}
           
           // Save to Firestore
           await window.firebaseUtils.saveUserData(email, { avatar: avatarUrl });
@@ -194,7 +453,17 @@ avatarInput.addEventListener("change", (e) => {
       };
     };
   }
+  // Allow re-selecting the same file by clearing the input value
+  try { e.target.value = ''; } catch (_) {}
 });
+
+// Allow clicking the avatar image to trigger the file input
+if (avatarPreview && avatarInput) {
+  avatarPreview.style.cursor = 'pointer';
+  avatarPreview.addEventListener('click', () => {
+    avatarInput.click();
+  });
+}
 
 async function compressImage(file, quality = 0.6, maxWidth = 700, maxHeight = 700) {
   return new Promise((resolve, reject) => {
@@ -322,7 +591,7 @@ async function autoSaveProfile() {
 }
 
 // Create a debounced version of the save function
-const debouncedAutoSave = debounce(autoSaveProfile, 1500);
+const debouncedAutoSave = debounce(autoSaveProfile, 2000);
 
 // Attach event listeners to all relevant inputs
 document.addEventListener('DOMContentLoaded', () => {
@@ -1022,8 +1291,8 @@ function resetBlockModal() {
 
 function openBlockModal(isEditing = false) {
   blockModal.style.display = "flex";
-  document.getElementById("modal-title").textContent = isEditing ? "Edit Block" : "Add Block";
-  document.getElementById("save-block").textContent = isEditing ? "Save Changes" : "Save Block";
+  document.getElementById("modal-title").textContent = isEditing ? "Edit Link" : "Add Link";
+  document.getElementById("save-block").textContent = isEditing ? "Save Changes" : "Save Link";
 
   const blockTypeSelect = document.getElementById("block-type-select");
   const blockLivePreview = document.getElementById("block-live-preview");
@@ -1063,8 +1332,8 @@ function openBlockModal(isEditing = false) {
           urlInstruction.textContent = 'Please enter a valid URL (starting with http://, https://, or www.)';
           urlInstruction.style.color = '#f44336';
         } else {
-          urlInstruction.textContent = 'Enter a valid URL to continue with block creation';
-          urlInstruction.style.color = '#666';
+          urlInstruction.textContent = 'Enter a valid URL to continue with link creation';
+          urlInstruction.style.color = '#ff8800';
         }
       }
     }, 50);
@@ -1630,7 +1899,7 @@ function renderConnectionsList() {
   console.log('Mutual connections:', mutuals);
   
   if (mutuals.length === 0) {
-    connectionsList.innerHTML = '<div style="color:#888;">No connections yet. Start connecting with others!</div>';
+    connectionsList.innerHTML = '';
     return;
   }
   

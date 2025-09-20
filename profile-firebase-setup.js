@@ -44,10 +44,12 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 const loginBtn = document.getElementById("login-btn");
+// Removed terms modal elements
 const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
 const welcomePopup = document.getElementById('welcome-popup');
 const welcomeJoinBtn = document.getElementById('welcome-join-btn');
+const welcomeLoginBtn = document.getElementById('welcome-login-btn');
 const previewBtn = document.getElementById('preview-page-btn');
 
 let currentUser = null;
@@ -78,9 +80,18 @@ function updateNavbarForAuth() {
 }
 
 loginBtn.onclick = async () => {
-    console.log("btn clicked")
-  const result = await signInWithPopup(auth, provider);
+  await signInWithPopup(auth, provider);
 };
+// Direct login button (skips terms modal and goes straight to Google pop-up)
+if (welcomeLoginBtn) {
+  welcomeLoginBtn.onclick = async () => {
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      console.error('Login popup failed', e);
+    }
+  };
+}
 
 logoutBtn.onclick = () => {
   signOut(auth);
@@ -346,6 +357,10 @@ function setupUserDataListener(email) {
         profileProgressSection.style.display = 'block';
       }
     }
+    // Notify other scripts that profile data changed (for onboarding, etc.)
+    try {
+      window.dispatchEvent(new CustomEvent('kr_profile_doc_updated', { detail: data }));
+    } catch (e) { /* no-op */ }
   });
 }
 

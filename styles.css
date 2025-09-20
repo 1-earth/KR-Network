@@ -16,6 +16,63 @@ body.network-page-body {
   overflow: hidden;
 }
 
+/* Welcome Overlay */
+.welcome-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.welcome-overlay.visible { opacity: 1; pointer-events: auto; }
+.welcome-overlay[hidden] { display: none !important; }
+.welcome-modal {
+  background: #111;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 14px;
+  width: 920px;
+  max-width: 94vw;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+}
+.welcome-copy { padding: 22px 24px 16px 24px; }
+.welcome-heading { margin: 0 0 6px 0; font-size: 20px; font-weight: 800; }
+.welcome-sub { margin: 0 0 14px 0; color: #bdbdbd; font-size: 14px; font-style: italic;}
+.welcome-body p { margin: 0 0 10px 0; color: #e6e6e6; font-size: 15px; }
+.welcome-body ul { margin: 8px 0 0 18px; padding: 0; color: #e6e6e6; }
+.welcome-body li { margin: 6px 0; }
+.welcome-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
+.welcome-body .welcome-beta { color: #9a9a9a; }
+
+@media (max-width: 768px) {
+  .welcome-heading { font-size: 18px; }
+  .welcome-sub { font-size: 12px; }
+  .welcome-body p { font-size: 13px; }
+  .welcome-body li { font-size: 13px; }
+}
+.welcome-toggle { display: inline-flex; align-items: center; gap: 8px; color: #d0d0d0; font-size: 14px; }
+.welcome-checkbox { width: 36px; height: 20px; }
+.welcome-enter-btn {
+  background: #0000ff;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 999px;
+  padding: 10px 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.welcome-enter-btn:hover { background: #1a1aff; }
+@media (max-width: 768px) {
+  .welcome-modal { width: 95vw; }
+}
+
 .link {
   fill: none;
   stroke: #999;
@@ -503,11 +560,154 @@ svg {
   /* For smooth scrolling on iOS */
 }
 
+
+/* Scroll Indicator (chevrons) */
+#popup-container .popup .scroll-indicator {
+  position: absolute;
+  right: 2%;
+  transform: translateX(-50%);
+  margin-left: 16px; /* shift slightly to the right of center */
+  top: 45%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* gap: 6px; */
+  color: #4e4e4e;
+  /* pointer-events: none;  */
+  z-index: 10;
+  will-change: transform, opacity;
+}
+
+#popup-container .popup .scroll-indicator .chev {
+  opacity: 0;
+  transform: translateY(-8px);
+  /* Subtle visibility against varied backgrounds */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+}
+
+#popup-container .popup .scroll-indicator.animate .chev {
+  animation: chev-drop 0.5s ease-out forwards;
+}
+
+#popup-container .popup .scroll-indicator.animate .chev:nth-child(2) {
+  animation-delay: 0.38s;
+}
+
+#popup-container .popup .scroll-indicator.animate .chev:nth-child(3) {
+  animation-delay: 0.66s;
+}
+
+#popup-container .popup .scroll-indicator.hidden {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+/* Fly-out on dismiss */
+#popup-container .popup .scroll-indicator.fly-out {
+  animation: scroll-indicator-fly-out 0.45s ease-out forwards;
+}
+
+@keyframes scroll-indicator-fly-out {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(34px);
+  }
+}
+
+@keyframes chev-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #popup-container .popup .scroll-indicator .chev {
+    opacity: 1;
+    transform: none;
+    animation: none !important;
+  }
+}
+
 @media screen and (max-width: 768px) {
   #popup-container .popup {
     max-width: 90vw !important;
   }
 
+}
+
+/* Interaction hint pill */
+.interaction-hint {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  background: rgba(20, 20, 20, 0.85);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1;
+  display: none; /* toggled via JS */
+  z-index: 100001; /* above popup overlay */
+  pointer-events: none; /* hint must not block */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.interaction-hint.click-hint {
+  bottom: 44px; /* stack slightly above main hint */
+}
+
+.demo-cursor {
+  position: fixed;
+  width: 8px;
+  height: 246px;
+  pointer-events: none;
+  z-index: 100002;
+  display: none;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.4));
+}
+
+.demo-cursor svg {
+  width: 30px;
+  height: 26px;
+}
+
+.interaction-hint .hint-text::before {
+  content: "";
+}
+
+.interaction-hint.show {
+  display: inline-block;
+  animation: hint-in 220ms ease-out;
+}
+
+.interaction-hint.hide {
+  animation: hint-out 180ms ease-in forwards;
+}
+
+@keyframes hint-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes hint-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interaction-hint.show { animation: none; }
+  .interaction-hint.hide { animation: none; }
 }
 
 .popup-button-container {
@@ -1457,10 +1657,10 @@ svg {
   right: 0;
   left: 0;
   margin: 0 auto;
-  width: 95vw;
+  width: 92vw !important;
   max-width: 600px;
   background: #181818;
-  border: 2px solid #fff;
+  border: 1px solid #fff;
   border-radius: 18px;
   z-index: 200;
   box-shadow: 0 8px 32px #0008;
@@ -1593,6 +1793,7 @@ svg {
   flex: 1;
   /* Each link will take equal width */
   text-align: center;
+  margin-top: 4px;
   /* Center text within each link's space */
 }
 
@@ -2345,12 +2546,12 @@ svg {
 .filter-chip {
   background: #333;
   color: #fff;
-  padding: 4px 12px;
+  padding: 4px 6px 4px 6px;
   border-radius: 20px;
   font-size: 0.8em;
   display: flex;
   align-items: center;
-  gap: 6px;
+  /* gap: 6px; */
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid #555;
@@ -2432,14 +2633,14 @@ svg {
   border: 1px solid #333;
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
+  z-index: 11002;
   opacity: 0;
   visibility: hidden;
   transform: translateY(-10px);
   transition: all 0.3s ease;
   max-height: 0;
   overflow: hidden;
-  width: 400px;
+  width: 50%;
   max-width: 90vw;
 }
 
@@ -2447,7 +2648,8 @@ svg {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
-  max-height: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .dropdown-header {
@@ -2618,8 +2820,11 @@ svg {
     border-radius: 0;
     max-height: 100vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     width: 100vw;
     max-width: 100vw;
+    padding-bottom: 120px; /* avoid overlap with bottom navbar */
+    z-index: 11002; /* above mobile navbar */
   }
   
   .filter-pills {
@@ -2738,14 +2943,15 @@ svg {
 
 
 #join-kr-button-fixed img {
-  width: 40px;
+  width: 34px;
   /* Adjust logo size as needed */
-  height: 40px;
+  height: 34px;
   /* margin-right: 10px; Space between logo and text */
 }
 
 #join-kr-button-fixed span {
   margin-right: 8px;
+  margin-left: 5px;
 }
 
 #join-kr-button-fixed:hover {
@@ -2766,10 +2972,15 @@ svg {
   /* Align labels and content to the left */
 }
 
+.post-budget{
+  color: #ffffff;
+  font-weight: bold;
+}
+
 
 @media (max-width: 768px) {
   #create-post-form-container {
-    padding: 0px;
+    padding: 10px;
   }
 }
 
@@ -2796,6 +3007,23 @@ svg {
   color: #ff4444;
   /* Red asterisk for required fields */
   margin-left: 2px;
+}
+
+/* Budget field layout */
+.budget-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.budget-input-wrapper .collab-input-field {
+  flex: 0.2;
+  width: auto;
+}
+
+.currency-prefix {
+  color: #bababa;
+  font-weight: 600;
 }
 
 /* Reusing .input-feild style, ensure it works in this context or add specific overrides if needed */
@@ -3111,7 +3339,7 @@ svg {
   background-color: #FFFFFF;
   border-radius: 10px;
   border: 1px solid #e0e0e0;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
   padding-left: 10px;
   padding-right: 10px;
   padding-top: 0px;
@@ -3375,6 +3603,7 @@ svg {
 .help-banner-text {
   margin: 0px;
   font-size: 14px;
+  text-decoration: underline;
 }
 
 .preview-text {
@@ -3431,7 +3660,7 @@ svg {
 
 .info-text-small {
   font-size: 10px;
-  color: #ff0000;
+  color: #c1c1c1;
   line-height: 1.3;
 }
 
@@ -3466,6 +3695,7 @@ svg {
   border: none;
   border-radius: 5px;
   padding: 10px 0px 10px 10px;
+  width: 100%;
 }
 
 #welcome-slide-2 #create-account-btn {
@@ -4725,6 +4955,31 @@ html.profile-focus-mode #fixed-top-logo {
 }
 
 .comment-actions{margin-left:auto;display:flex;gap:6px;}
+
+/* Discover feed owner edit/delete buttons */
+.discoverfeed-userpost-edit{
+  background:none;
+  border: 0.5px solid #0000ff !important;
+  color:#fff;
+  border:none;
+  border-radius:4px;
+  padding:4px 8px;
+  font-size:12px;
+  cursor:pointer;
+}
+.discoverfeed-userpost-edit:hover{filter:brightness(1.1);}
+
+.discoverfeed-userpost-delete{
+  background:none;
+  border: 0.5px solid #cc0000 !important;
+  color:#fff;
+  border:none;
+  border-radius:4px;
+  padding:4px 8px;
+  font-size:12px;
+  cursor:pointer;
+}
+.discoverfeed-userpost-delete:hover{filter:brightness(1.1);} 
 
 /* --- Admin Global Block Modal --- */
 .modal{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.6);display:flex;justify-content:center;align-items:center;z-index:10000;}
