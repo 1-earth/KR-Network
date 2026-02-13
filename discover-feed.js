@@ -263,7 +263,7 @@ function renderBlockCard(block, container) {
     const cachedUser = window.__userCache ? window.__userCache[block.owner] : null;
     const display = (cachedUser && cachedUser.title) ? cachedUser.title : block.owner;
     const slug = String(display || '').toLowerCase().replace(/\s+/g, '');
-    window.location.href = `index.html?link=${encodeURIComponent(slug)}`;
+    window.location.href = `https://kr-net.work?link=${encodeURIComponent(slug)}`;
   };
 
   card.appendChild(header);
@@ -377,9 +377,7 @@ function renderBlockCard(block, container) {
       row.appendChild(contentWrap);
       card.appendChild(row);
   } else {
-      // existing behaviour
-      card.appendChild(t);
-      card.appendChild(d);
+      // defer title/desc placement for non-default layouts (append after media)
   }
 
   // Determine image to show
@@ -442,6 +440,16 @@ function renderBlockCard(block, container) {
       }
   }
 
+  // For non-default layouts, place title and description after media
+  if (!isDefaultLayout) {
+    card.appendChild(t);
+    card.appendChild(d);
+  }
+
+  // Interaction wrapper (actions + comments + add-comment)
+  const interaction = document.createElement('div');
+  interaction.className = 'discover-interaction';
+
   // Actions row
   const actions = document.createElement('div');
   actions.className = 'discover-actions';
@@ -480,7 +488,7 @@ function renderBlockCard(block, container) {
   actions.appendChild(upBtn);
   actions.appendChild(scoreSpan);
   actions.appendChild(downBtn);
-  card.appendChild(actions);
+  interaction.appendChild(actions);
 
   // Track current vote status locally (0 none, 1 up, -1 down)
   let currentVote = 0;
@@ -534,7 +542,7 @@ function renderBlockCard(block, container) {
   // Comments list
   const commentsDiv = document.createElement('div');
   commentsDiv.className = 'discover-comments';
-  card.appendChild(commentsDiv);
+  interaction.appendChild(commentsDiv);
 
   const loadComments = async (lim=3, showAll=false) => {
     commentsDiv.innerHTML='';
@@ -636,20 +644,12 @@ function renderBlockCard(block, container) {
 
   addDiv.appendChild(inp);
   addDiv.appendChild(send);
-  card.appendChild(addDiv);
+  interaction.appendChild(addDiv);
 
-  // View profile button
-  const viewBtn = document.createElement('button');
-  viewBtn.className = 'discover-view-profile';
-  viewBtn.textContent = 'VIEW PROFILE';
-  // Navigate to the NETWORK page with the user's profile id (preferred) or email as fallback
-  viewBtn.onclick = () => {
-    const cachedUser = window.__userCache ? window.__userCache[block.owner] : null;
-    const display = (cachedUser && cachedUser.title) ? cachedUser.title : block.owner;
-    const slug = String(display || '').toLowerCase().replace(/\s+/g, '');
-    window.location.href = `index.html?link=${encodeURIComponent(slug)}`;
-  };
-  card.appendChild(viewBtn);
+  // Append interaction wrapper to card
+  card.appendChild(interaction);
+
+  // Removed 'VIEW PROFILE' button per request
 
   container.appendChild(card);
 }

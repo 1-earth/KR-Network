@@ -49,8 +49,13 @@ function updateNavbarForAuth() {
   }
 }
 
+// Flag to indicate auth state has been determined
+let authStateResolved = false;
+
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
+  authStateResolved = true; // Mark that auth state is now known
+  
   const userStatusDiv = document.getElementById('logged-in-user-status');
   const userAvatarImg = document.getElementById('logged-in-user-avatar');
   const userTextSpan = document.getElementById('logged-in-user-text');
@@ -170,6 +175,9 @@ async function loadInitialData(user) {
 window.networkFirebaseUtils = {
   get currentUser() {
     return currentUser;
+  },
+  get authStateResolved() {
+    return authStateResolved;
   },
   fetchAllUsers,
   getUserProfile,

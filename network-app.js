@@ -86,9 +86,14 @@ let userNotifications = [];
 let unreadNotificationIds = [];
 let pendingConnectionRequests = [];
 let panningMagnifiedNodes = new Map();
+let isHoldZoomActive = false; // Temporarily disables D3 zoom while slide-zoom is active
 
 // Interval for cycling loading dots
 let loadingDotsInterval = null;
+
+// Decide base loading text based on presence of ?link= query
+const initialLoadingContextIsProfile = new URLSearchParams(window.location.search).has('link');
+const baseLoadingText = initialLoadingContextIsProfile ? 'Loading profile' : 'Loading network';
 
 // --- Vision Mode ---
 let isVisionModeActive = false;
@@ -100,6 +105,9 @@ let savedTransformBeforeVision = null; // Stores the zoom/pan before entering vi
 
 // --- END Vision Mode ---
 
+// --- Practice Links (dynamic per selected practice) ---
+let practiceLinksLayer = null; // SVG <g> layer for practice links (behind normal links)
+
 // --- START: DOMContentLoaded listener for staged loader ---
 document.addEventListener('DOMContentLoaded', () => {
   if (!loadingScreen || loadingScreen.classList.contains('hidden')) return;
@@ -109,7 +117,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Step 2: after short delay show text + canvas and start dots / animation
   setTimeout(() => {
-    if (loadingScreenText) loadingScreenText.classList.add('visible');
+    if (loadingScreenText) {
+      loadingScreenText.classList.add('visible');
+      // Ensure the initial text reflects context before dots start animating
+      loadingScreenText.textContent = `${baseLoadingText}.`;
+    }
 
     if (loadingCanvas) {
       loadingCanvas.classList.add('visible');
@@ -124,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loadingDotsInterval = setInterval(() => {
         dotCount = (dotCount + 1) % 3; // 0,1,2
         const dots = '.'.repeat(dotCount + 1);
-        loadingScreenText.textContent = `Loading network${dots}`;
+        loadingScreenText.textContent = `${baseLoadingText}${dots}`;
       }, 400);
     }
   }, 100); // delay before showing text & canvas
@@ -272,6 +284,8 @@ async function initNetwork() {
 
   // Create the SVG container
   zoomBehavior = d3.zoom().on("zoom", (event) => {
+    // Always apply the latest transform. During hold-zoom we suppress D3 receiving touch events
+    // via capture-phase handlers, but we still allow programmatic transforms to update the view.
     svg.select("g.network-container").attr("transform", event.transform);
 
     // Always calculate panning magnification
@@ -291,8 +305,218 @@ async function initNetwork() {
     .call(zoomBehavior)
     .style("background-color", "#1a1a1a");
 
+  // --- Mobile Double-Tap-Hold Zoom (Google Maps style) ---
+  (function setupDoubleTapHoldZoom() {
+    const svgNode = svg.node();
+    if (!svgNode) return;
+
+    let lastTapTimestamp = 0;
+    let lastTapClientX = 0;
+    let lastTapClientY = 0;
+
+    const DOUBLE_TAP_MAX_DELAY_MS = 300;
+    const DOUBLE_TAP_MAX_DISTANCE_PX = 30;
+    const HOLD_ACTIVATION_DELAY_MS = 150;
+    const ZOOM_PER_PIXEL = Math.log(2) / 150; // 150px down = 2x zoom
+
+    let holdZoomActive = false;
+    let holdPointerId = null;
+    let anchorClientX = 0;
+    let anchorClientY = 0;
+    let anchorSvgX = 0;
+    let anchorSvgY = 0;
+    let anchorWorldX = 0;
+    let anchorWorldY = 0;
+    let startClientY = 0;
+    let startScaleK = 1;
+    let pendingHoldZoom = false;
+    let candidatePointerId = null;
+    let candidateStartClientX = 0;
+    let candidateStartClientY = 0;
+    let candidateStartTs = 0;
+    let suppressQuickDoubleTap = false;
+
+    function isMobileViewport() { return window.innerWidth <= 768; }
+
+    function isAnyOverlayOpen() {
+      try {
+        const profileContainer = document.getElementById('popup-container');
+        if (profileContainer && window.getComputedStyle(profileContainer).display !== 'none') return true;
+        const joinOverlay = document.getElementById('join-kr-popup-overlay');
+        if (joinOverlay && joinOverlay.classList.contains('active')) return true;
+        const notifOverlay = document.getElementById('notification-popup-overlay');
+        if (notifOverlay && notifOverlay.classList.contains('visible')) return true;
+        const connectOverlay = document.getElementById('connect-confirm-overlay');
+        if (connectOverlay && connectOverlay.classList.contains('visible')) return true;
+        const welcomeOverlay = document.getElementById('welcome-overlay');
+        if (welcomeOverlay && !welcomeOverlay.hidden) return true;
+      } catch (_) {}
+      return false;
+    }
+
+    function clientToSvg(clientX, clientY) {
+      const pt = svgNode.createSVGPoint();
+      pt.x = clientX; pt.y = clientY;
+      const ctm = svgNode.getScreenCTM();
+      if (!ctm) return { x: clientX, y: clientY };
+      const svgP = pt.matrixTransform(ctm.inverse());
+      return { x: svgP.x, y: svgP.y };
+    }
+
+    function distance(aX, aY, bX, bY) {
+      const dx = aX - bX, dy = aY - bY;
+      return Math.hypot(dx, dy);
+    }
+
+    function activateHoldZoom(touch) {
+      holdZoomActive = true;
+      isHoldZoomActive = true;
+      holdPointerId = touch.identifier;
+      anchorClientX = touch.clientX;
+      anchorClientY = touch.clientY;
+
+      const svgPoint = clientToSvg(anchorClientX, anchorClientY);
+      anchorSvgX = svgPoint.x;
+      anchorSvgY = svgPoint.y;
+
+      const currentTransform = d3.zoomTransform(svgNode);
+      const worldPoint = currentTransform.invert([anchorSvgX, anchorSvgY]);
+      anchorWorldX = worldPoint[0];
+      anchorWorldY = worldPoint[1];
+
+      startClientY = touch.clientY;
+      startScaleK = currentTransform.k;
+    }
+
+    function applyAnchoredZoom(newScaleK) {
+      const tx = anchorSvgX - anchorWorldX * newScaleK;
+      const ty = anchorSvgY - anchorWorldY * newScaleK;
+      const next = d3.zoomIdentity.translate(tx, ty).scale(newScaleK);
+      d3.select(svgNode).call(zoomBehavior.transform, next);
+    }
+
+    function onTouchStart(e) {
+      if (!isMobileViewport() || isAnyOverlayOpen()) return;
+      if (e.touches.length !== 1) {
+        // Cancel if multi-touch begins; let pinch-zoom take over
+        pendingHoldZoom = false;
+        candidatePointerId = null;
+        return;
+      }
+
+      const touch = e.changedTouches[0];
+      const now = Date.now();
+      const timeSinceLast = now - lastTapTimestamp;
+      const dist = distance(touch.clientX, touch.clientY, lastTapClientX, lastTapClientY);
+
+      // Double-tap detection
+      if (timeSinceLast <= DOUBLE_TAP_MAX_DELAY_MS && dist <= DOUBLE_TAP_MAX_DISTANCE_PX) {
+        // Arm pending hold-zoom; will activate on slight hold/move in touchmove
+        pendingHoldZoom = true;
+        candidatePointerId = touch.identifier;
+        candidateStartClientX = touch.clientX;
+        candidateStartClientY = touch.clientY;
+        candidateStartTs = now;
+        suppressQuickDoubleTap = false;
+      }
+
+      lastTapTimestamp = now;
+      lastTapClientX = touch.clientX;
+      lastTapClientY = touch.clientY;
+    }
+
+    function onTouchMove(e) {
+      if (!holdZoomActive) return;
+      const touches = Array.from(e.touches || []);
+      const myTouch = touches.find(t => t.identifier === holdPointerId);
+      // If not yet active, check if we should transition from pending to active
+      if (!myTouch && pendingHoldZoom) {
+        const cand = Array.from(e.touches || []).find(t => t.identifier === candidatePointerId);
+        if (!cand) return;
+        const since = Date.now() - candidateStartTs;
+        const moved = Math.hypot(cand.clientX - candidateStartClientX, cand.clientY - candidateStartClientY);
+        if (since >= HOLD_ACTIVATION_DELAY_MS || moved > 2) {
+          // Activate hold-zoom anchored at finger
+          activateHoldZoom(cand);
+          pendingHoldZoom = false;
+          suppressQuickDoubleTap = true;
+          // From now on, proceed as active path below
+        } else {
+          // While pending, prevent D3 pan
+          try { e.preventDefault(); } catch (_) {}
+          e.stopImmediatePropagation();
+          return;
+        }
+      }
+      if (!myTouch) return;
+
+      // Compute new scale from vertical delta
+      const deltaY = myTouch.clientY - startClientY;
+      const newK = startScaleK * Math.exp(deltaY * ZOOM_PER_PIXEL);
+      applyAnchoredZoom(newK);
+
+      // Prevent scrolling and stop other handlers (like D3) from panning
+      try { e.preventDefault(); } catch (_) {}
+      e.stopImmediatePropagation();
+    }
+
+    function onTouchEnd(e) {
+      const touchList = Array.from(e.changedTouches || []);
+      const endedMine = touchList.some(t => t.identifier === holdPointerId);
+
+      if (holdZoomActive && endedMine) {
+        holdZoomActive = false;
+        holdPointerId = null;
+        isHoldZoomActive = false;
+        e.stopPropagation();
+        return;
+      }
+
+      // If we were in a pending state but decided to hold/move, suppress quick double-tap zoom
+      if (pendingHoldZoom) {
+        // If no suppression, it's a quick double-tap → zoom in once
+        if (!suppressQuickDoubleTap) {
+          const svgPoint = clientToSvg(lastTapClientX, lastTapClientY);
+          const currentTransform = d3.zoomTransform(svgNode);
+          const worldPoint = currentTransform.invert([svgPoint.x, svgPoint.y]);
+          const k2 = currentTransform.k * 1.5;
+          const tx = svgPoint.x - worldPoint[0] * k2;
+          const ty = svgPoint.y - worldPoint[1] * k2;
+          const next = d3.zoomIdentity.translate(tx, ty).scale(k2);
+          d3.select(svgNode).call(zoomBehavior.transform, next);
+        }
+        pendingHoldZoom = false;
+        candidatePointerId = null;
+        suppressQuickDoubleTap = false;
+      }
+    }
+
+    function onTouchCancel() {
+      holdZoomActive = false;
+      holdPointerId = null;
+      isHoldZoomActive = false;
+      pendingHoldZoom = false;
+      candidatePointerId = null;
+      suppressQuickDoubleTap = false;
+    }
+
+    // Register listeners with passive:false so we can preventDefault during active zoom
+    svgNode.addEventListener('touchstart', onTouchStart, { passive: false, capture: true });
+    svgNode.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+    svgNode.addEventListener('touchend', onTouchEnd, { passive: false });
+    svgNode.addEventListener('touchcancel', onTouchCancel, { passive: false });
+
+    // Prevent native scroll/pan on the SVG surface on mobile
+    if (isMobileViewport()) {
+      try { svg.style("touch-action", "none"); } catch (_) {}
+    }
+  })();
+
   // Create a container group for zooming
   const container = svg.append("g").attr("class", "network-container");
+
+  // Practice links layer: draw behind normal links and nodes
+  practiceLinksLayer = container.append("g").attr("class", "practice-links-layer");
 
   // Create a group for vision mode media right before nodes, so nodes are on top
   visionMediaGroup = container.append("g").attr("class", "vision-media-container");
@@ -365,6 +589,15 @@ async function initNetwork() {
       .attr("y1", d => d.source.y)
       .attr("x2", d => d.target.x)
       .attr("y2", d => d.target.y);
+
+    // Keep practice-links in sync with node positions
+    if (practiceLinksLayer) {
+      practiceLinksLayer.selectAll('line.practice-link')
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y);
+    }
 
     node
       .attr("transform", d => `translate(${d.x},${d.y})`);
@@ -537,8 +770,8 @@ function showProfileModal(user) {
 
   // Ensure sticky button has content and click handler
   if (stickyOverlayButtonElement) {
-    stickyOverlayButtonElement.innerHTML = `<img src="static/img/community.svg" alt="Community"> VIEW COMMUNITY`;
-    stickyOverlayButtonElement.onclick = () => closePopup();
+    stickyOverlayButtonElement.innerHTML = `<img src="static/img/community.svg" alt="Community"> VIEW MY COMMUNITY`;
+    stickyOverlayButtonElement.onclick = () => { try { playBackButtonSound(); } catch(_) {} closePopup(); };
   }
   
   // Hide clear filters button when popup is open
@@ -552,20 +785,16 @@ function showProfileModal(user) {
     const viewBtn = document.createElement('button');
     viewBtn.className = 'view-community-btn'; // This class is primarily for its own specific styling if any
     // Add icon and text
-    viewBtn.innerHTML = `<img src="static/img/community.svg" alt="Community" class="button-icon" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;"> VIEW COMMUNITY`;
-    viewBtn.onclick = () => {
-      closePopup(); // Call the main closePopup function which handles URL reset
-    };
+    viewBtn.innerHTML = `<img src="static/img/community.svg" alt="Community" class="button-icon" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;"> VIEW MY COMMUNITY`;
+    viewBtn.onclick = () => { try { playBackButtonSound(); } catch(_) {} closePopup(); };
     viewBtnDiv.appendChild(viewBtn);
     popupContent.insertBefore(viewBtnDiv, popupContent.firstChild);
   } else {
     // If the button already exists, ensure its content and onclick handler are correct
     const existingBtn = viewBtnDiv.querySelector('.view-community-btn');
     if (existingBtn) {
-      existingBtn.innerHTML = `<img src="static/img/community.svg" alt="Community" class="button-icon" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;"> VIEW COMMUNITY`;
-      existingBtn.onclick = () => {
-        closePopup(); // Call the main closePopup function which handles URL reset
-      }
+      existingBtn.innerHTML = `<img src="static/img/community.svg" alt="Community" class="button-icon" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;"> VIEW MY COMMUNITY`;
+      existingBtn.onclick = () => { try { playBackButtonSound(); } catch(_) {} closePopup(); }
     }
   }
 
@@ -587,7 +816,7 @@ function showProfileModal(user) {
 
     // Construct the unique profile URL (title-based slug)
     const slug = slugifyTitle(user.title || (user.email || '').split('@')[0]);
-    const profileUrl = `${window.location.origin}${window.location.pathname}?link=${slug}`;
+    const profileUrl = `https://kr-net.work?link=${slug}`;
     const shareModal = document.getElementById('share-modal');
     if (!shareModal) {
       console.error("Share modal element not found.");
@@ -835,7 +1064,7 @@ function showProfileModal(user) {
       popupContent.appendChild(blockContainer);
     }
   }
-  blockContainer.innerHTML = '';
+  blockContainer.innerHTML = (user.blocks && user.blocks.length > 0) ? '<p class="block-container-title"> My Links 🔗</p>' : '';
 
   if (user.blocks && user.blocks.length > 0) {
     user.blocks.forEach((block, blockIdx) => {
@@ -937,6 +1166,11 @@ function showProfileModal(user) {
       const practiceRaw = pill.getAttribute('data-practice') || pill.textContent.trim();
       if (!practiceRaw) return;
 
+      // Deselect any currently active node so previous selections don't linger
+      if (activeClickedNodeId) {
+        updateNodeVisuals(null);
+      }
+
       // Clear all existing filters and search first
       selectedPractices = [];
       searchTerm = '';
@@ -946,9 +1180,12 @@ function showProfileModal(user) {
       selectedPractices = [practiceRaw];
 
       // Update UI state and results
+      
       renderFilterChips();
       updateClearFiltersBtn();
       highlightMatchingNodes();
+
+      // Practice links will be handled by highlightMatchingNodes -> updatePracticeLinks
 
       // Close the profile popup to reveal the network
       closePopup();
@@ -1169,10 +1406,9 @@ const closePopup = () => {
     clearFiltersBtn.style.display = 'block';
   }
 
-  // If user arrived via a profile deep link, optionally show the welcome overlay once per session
+  // Show welcome overlay after profile modal closes if appropriate
   try {
-    if (window.__krHasProfileOnLoad && window.krWelcomeControl && typeof window.krWelcomeControl.maybeShowAfterProfileClose === 'function') {
-      // Defer slightly to allow UI to settle
+    if (window.krWelcomeControl && typeof window.krWelcomeControl.maybeShowAfterProfileClose === 'function') {
       setTimeout(() => window.krWelcomeControl.maybeShowAfterProfileClose(), 100);
     }
   } catch (e) { /* no-op */ }
@@ -1193,6 +1429,10 @@ function updateNodeVisuals(selectedNodeId = null, nodesToMagnify = new Map()) {
   const isSearchFilterActive = searchTerm || selectedPractices.length > 0;
   let depths = {};
   let nodesToHighlight = new Set();
+  // Determine the currently logged-in user's email (if any)
+  const currentUserEmail = (window.networkFirebaseUtils && window.networkFirebaseUtils.currentUser)
+    ? window.networkFirebaseUtils.currentUser.email
+    : null;
 
   if (selectedNodeId) {
     // --- Calculate Depths (BFS) --- 
@@ -1362,6 +1602,31 @@ function updateNodeVisuals(selectedNodeId = null, nodesToMagnify = new Map()) {
     // Apply final radius by taking the largest calculated size
             targetRadius = Math.max(targetRadius, magnifiedRadius);
     
+    // --- Logged-in user's persistent pulse ring ---
+    const isSelfNode = currentUserEmail && nodeId === currentUserEmail;
+    if (isSelfNode) {
+      const baseRingRadius = (typeof targetRadius === 'number' ? targetRadius : R_DEFAULT) + 3;
+      // Create rings lazily if missing, insert before main circle so they sit behind
+      let r1 = nodeElement.select('circle.self-pulse-ring.r1');
+      if (r1.empty()) {
+        r1 = nodeElement.insert('circle', '.main-circle')
+          .attr('class', 'self-pulse-ring r1')
+          .style('pointer-events', 'none');
+      }
+      let r2 = nodeElement.select('circle.self-pulse-ring.r2');
+      if (r2.empty()) {
+        r2 = nodeElement.insert('circle', '.main-circle')
+          .attr('class', 'self-pulse-ring r2')
+          .style('pointer-events', 'none');
+      }
+      // Keep ring radius in sync with node radius
+      r1.attr('r', baseRingRadius);
+      r2.attr('r', baseRingRadius);
+    } else {
+      // Ensure only the self node shows the persistent ring
+      nodeElement.selectAll('circle.self-pulse-ring').remove();
+    }
+
     // Determine avatar visibility based on magnification
     const isMagnified = isVisionMagnified || (isPanningMagnified && !isVisionModeActive);
     
@@ -1435,10 +1700,94 @@ const PRACTICES = [
   "Printing", "Product Design", "Publication", "Set Design", "Sound"
 ].sort();
 
+// Build or remove practice-links and practiceLink force based on current filters
+function updatePracticeLinks() {
+  try {
+    if (!practiceLinksLayer || !simulation) return;
+
+    // Only show when exactly one practice is selected
+    if (!Array.isArray(selectedPractices) || selectedPractices.length !== 1) {
+      // Remove links and force
+      practiceLinksLayer.selectAll('line.practice-link').remove();
+      simulation.force('practiceLink', null);
+      simulation.alpha(0.15).restart();
+      return;
+    }
+
+    const selectedPractice = selectedPractices[0];
+    const term = (searchTerm || '').trim().toLowerCase();
+
+    // Determine which nodes participate: must have the selected practice AND (if a search term exists) match it
+    const idToUser = new Map(allUsers.map(u => [u.email, u]));
+    const participatingNodes = nodes.filter(node => {
+      const user = idToUser.get(node.id);
+      if (!user || !Array.isArray(user.practices)) return false;
+      const hasPractice = user.practices.includes(selectedPractice);
+      if (!hasPractice) return false;
+      if (!term) return true; // No search term; practice alone is enough
+      // Simple term match consistent with highlightMatchingNodes logic (title/id)
+      const titleOrId = (node.title || node.id || '').toLowerCase();
+      return titleOrId.includes(term);
+    });
+
+    if (participatingNodes.length < 2) {
+      // Nothing to connect
+      practiceLinksLayer.selectAll('line.practice-link').remove();
+      simulation.force('practiceLink', null);
+      simulation.alpha(0.15).restart();
+      return;
+    }
+
+    // Build full pairwise links
+    const practiceLinks = [];
+    for (let i = 0; i < participatingNodes.length; i++) {
+      for (let j = i + 1; j < participatingNodes.length; j++) {
+        practiceLinks.push({ source: participatingNodes[i].id, target: participatingNodes[j].id });
+      }
+    }
+
+    // Data join for SVG lines
+    function linkKey(d) {
+      const a = typeof d.source === 'object' ? d.source.id : d.source;
+      const b = typeof d.target === 'object' ? d.target.id : d.target;
+      return a < b ? `${a}__${b}` : `${b}__${a}`;
+    }
+
+    const sel = practiceLinksLayer
+      .selectAll('line.practice-link')
+      .data(practiceLinks, linkKey);
+
+    sel.exit().remove();
+
+    sel.enter()
+      .append('line')
+      .attr('class', 'practice-link')
+      .style('stroke', '#4ca39a')
+      .style('stroke-dasharray', '4 5')
+      .style('stroke-width', 1.25)
+      .style('opacity', 0.65)
+      .style('pointer-events', 'none');
+
+    // Update the simulation force
+    simulation.force('practiceLink', d3.forceLink(practiceLinks)
+      .id(d => d.id)
+      .distance(34)
+      .strength(0.18)
+    );
+
+    simulation.alpha(0.6).restart();
+  } catch (e) {
+    console.error('updatePracticeLinks error:', e);
+  }
+}
+
 function highlightMatchingNodes() {
   // This function now primarily triggers the update and potential zoom
   const isSearchFilterActive = searchTerm || selectedPractices.length > 0;
   updateNodeVisuals(activeClickedNodeId); // Re-apply visuals considering the new filter state
+
+  // Update practice links and force based on current selection/search
+  updatePracticeLinks();
 
   if (isSearchFilterActive) {
     // Collect nodes matching the current search/filter to zoom
@@ -1629,6 +1978,7 @@ searchInput.addEventListener('input', () => {
   debounceTimeout = setTimeout(() => {
     highlightMatchingNodes();
     updateClearFiltersBtn();
+    // Practice links already updated by highlightMatchingNodes
     // If all filters and search are cleared, zoom out
     if (selectedPractices.length === 0 && !searchTerm) {
       const svg = d3.select('svg');
@@ -1725,6 +2075,9 @@ clearFiltersBtn.addEventListener('click', () => {
   selectedPractices = [];
   renderFilterChips();
   updateClearFiltersBtn();
+
+  // Remove practice links and force when filters are cleared
+  updatePracticeLinks();
 
   if (currentProfileIdInUrl) {
     // A profile is "pinned" by URL or was last clicked (match by slug)
@@ -2151,6 +2504,38 @@ function triggerHaptic() {
   }
 }
 
+// Back button sound (for View Community actions)
+let backButtonAudio = document.getElementById('back-button-audio');
+if (!backButtonAudio) {
+  backButtonAudio = document.createElement('audio');
+  backButtonAudio.id = 'back-button-audio';
+  backButtonAudio.src = 'static/sounds/BACKBUTTONSOUND.wav';
+  backButtonAudio.preload = 'auto';
+  document.body.appendChild(backButtonAudio);
+}
+try { backButtonAudio.volume = 0.2; } catch(_) {}
+
+function playBackButtonSound() {
+  if (!hasUserInteractedForAudio) return;
+  if (backButtonAudio) {
+    try { backButtonAudio.currentTime = 0; } catch(_) {}
+    backButtonAudio.play().catch(() => {});
+  }
+}
+
+let hasUserInteractedForAudio = false;
+(function gateAudioAfterFirstInteraction() {
+  function mark() {
+    hasUserInteractedForAudio = true;
+    try { document.removeEventListener('pointerdown', mark, true); } catch(_) {}
+    try { document.removeEventListener('keydown', mark, true); } catch(_) {}
+    try { document.removeEventListener('touchstart', mark, true); } catch(_) {}
+  }
+  document.addEventListener('pointerdown', mark, true);
+  document.addEventListener('keydown', mark, true);
+  document.addEventListener('touchstart', mark, true);
+})();
+
 function showNodeRipple(nodeDatum) {
   // Get SVG and <g.network-container>
   const svg = d3.select('svg');
@@ -2321,10 +2706,8 @@ function renderNotifications() {
                 // If it's an email and we didn't find a user, take local-part as best-effort
                 if (!targetUser && /@/.test(display)) display = display.split('@')[0];
                 const slug = slugifyTitle(display);
-                // Build relative link that works locally and on prod
-                const base = (window.location.pathname === '/' || /index\.html$/.test(window.location.pathname)) ? '' : 'index.html';
-                const sep = base ? '' : '';
-                return `${base}?link=${slug}`;
+                // Always use absolute KR root link
+                return `https://kr-net.work?link=${slug}`;
             }
 
             // No legacy param detected; return original
@@ -2466,7 +2849,7 @@ function renderConnectionRequestsSection() {
     const items = pendingConnectionRequests.map(u => {
         const avatar = u.avatar || 'static/img/default-avatar.png';
         const title = u.title || u.email.split('@')[0];
-        const viewLink = `index.html?link=${slugifyTitle(title)}`;
+        const viewLink = `https://kr-net.work?link=${slugifyTitle(title)}`;
         return `
             <div class="notification-item connection-request" data-email="${u.email}">
                 <div class="notification-header">

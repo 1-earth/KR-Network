@@ -691,7 +691,7 @@ avatarInput.addEventListener("change", (e) => {
           const blob = await new Promise(resolve => cropper.getCroppedCanvas().toBlob(resolve, 'image/jpeg'));
 
           avatarFile = new File([blob], "avatar.jpg", { type: "image/jpeg" });
-          const compressedBlob = await compressImage(avatarFile, 0.7, 800, 800);
+          const compressedBlob = await compressImage(avatarFile, 0.7, 400, 400);
           const compressedFile = new File([compressedBlob], "avatar.jpg", { type: "image/jpeg" });
 
           // Upload the new avatar immediately
@@ -1701,7 +1701,10 @@ document.getElementById("save-block").addEventListener("click", async () => {
       let imgUrl = null;
       const file = blockImgInput.files[0];
       if (file) {
-        const compressedBlob = await compressImage(file, 0.7, 800, 800);
+        const targetQuality = (currentBlockType === 'default') ? 0.5 : 0.7;
+        const maxWidth = (currentBlockType === 'default') ? 100 : 700;
+        const maxHeight = (currentBlockType === 'default') ? 100 : 700;
+        const compressedBlob = await compressImage(file, targetQuality, maxWidth, maxHeight);
         const compressedFile = new File([compressedBlob], file.name, { type: 'image/jpeg' });
         imgUrl = await window.firebaseUtils.uploadImage(compressedFile, `blocks/${email}/${Date.now()}`);
       }
@@ -1723,7 +1726,7 @@ document.getElementById("save-block").addEventListener("click", async () => {
       for (let i = 0; i < carouselSlides.length; i++) {
         let imgUrl = null;
         if (carouselSlides[i].imgFile) {
-          const compressedBlob = await compressImage(carouselSlides[i].imgFile, 0.7, 800, 800);
+          const compressedBlob = await compressImage(carouselSlides[i].imgFile, 0.7, 700, 700);
           const compressedFile = new File([compressedBlob], carouselSlides[i].imgFile.name, { type: 'image/jpeg' });
           imgUrl = await window.firebaseUtils.uploadImage(compressedFile, `blocks/${email}/carousel/${Date.now()}_${i}`);
         }

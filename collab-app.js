@@ -29,6 +29,46 @@ document.addEventListener('DOMContentLoaded', () => {
         dateRange: null
     };
     let searchTimeout = null;
+    let filtersInitialized = false; // prevent duplicate listener bindings
+
+    // --- DEBUG HELPERS ---
+    function getSelectedFiltersDebug() {
+        return {
+            searchQuery,
+            practices: Array.from(selectedFilters.practices),
+            keywords: Array.from(selectedFilters.keywords),
+            status: Array.from(selectedFilters.status),
+            dateRange: selectedFilters.dateRange
+        };
+    }
+
+    // Build filter state from DOM-selected pills to avoid any desync
+    function computeSelectedFiltersFromDOM() {
+        const dropdown = document.getElementById('collab-filter-dropdown');
+        if (!dropdown) return;
+
+        const selectedPracticeValues = Array.from(dropdown.querySelectorAll('.filter-pill[data-type="practice"].selected'))
+            .map(p => String(p.getAttribute('data-value')).toLowerCase());
+        const selectedKeywordValues = Array.from(dropdown.querySelectorAll('.filter-pill[data-type="keyword"].selected'))
+            .map(p => String(p.getAttribute('data-value')).toLowerCase());
+        const selectedStatusValues = Array.from(dropdown.querySelectorAll('.filter-pill[data-type="status"].selected'))
+            .map(p => String(p.getAttribute('data-value')).toLowerCase());
+        const selectedDateRangePill = dropdown.querySelector('.filter-pill[data-type="dateRange"].selected');
+        const selectedDateRangeValue = selectedDateRangePill ? selectedDateRangePill.getAttribute('data-value') : null;
+
+        selectedFilters.practices.clear();
+        selectedPracticeValues.forEach(v => selectedFilters.practices.add(v));
+
+        selectedFilters.keywords.clear();
+        selectedKeywordValues.forEach(v => selectedFilters.keywords.add(v));
+
+        selectedFilters.status.clear();
+        if (selectedStatusValues[0]) selectedFilters.status.add(selectedStatusValues[0]);
+
+        selectedFilters.dateRange = selectedDateRangeValue;
+
+        console.log('[Collab] computeSelectedFiltersFromDOM', getSelectedFiltersDebug());
+    }
 
     function linkify(text) {
         if (!text) return text;
@@ -89,6 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function applySearchAndFilters() {
+        // Always recompute selected filters from DOM so pills drive state
+        computeSelectedFiltersFromDOM();
+        console.log('[Collab] applySearchAndFilters:start', getSelectedFiltersDebug(), { allPosts: allPosts.length });
         filteredPosts = allPosts.filter(post => {
             // Search filter
             if (searchQuery) {
@@ -152,9 +195,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         });
 
+        console.log('[Collab] applySearchAndFilters:computed', { filtered: filteredPosts.length });
         renderCollabPosts(filteredPosts);
         updateFilterChips();
         updateClearFiltersButton();
+        updateResultsCount();
+        syncFilterPillsWithState();
     }
 
     function updateFilterChips() {
@@ -225,6 +271,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function clearAllFilters() {
+        console.log('[Collab] clearAllFilters');
+        // Clear selected classes in dropdown pills
+        const dropdown = document.getElementById('collab-filter-dropdown');
+        if (dropdown) {
+            dropdown.querySelectorAll('.filter-pill.selected').forEach(p => p.classList.remove('selected'));
+        }
         selectedFilters.practices.clear();
         selectedFilters.keywords.clear();
         selectedFilters.status.clear();
@@ -235,7 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (searchInput) searchInput.value = '';
         
         applySearchAndFilters();
-        closeFilterDropdown();
+        syncFilterPillsWithState();
+        // keep dropdown open per requirement
     }
 
     function toggleFilterDropdown() {
@@ -266,6 +319,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         dropdown.classList.add('active');
         console.log('Added active class to dropdown');
+        // Ensure the visual state matches the current selected filters
+        syncFilterPillsWithState();
         document.addEventListener('click', outsideClickHandler);
         document.addEventListener('keydown', escHandler);
     }
@@ -312,9 +367,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'status':
+                // Single-select behavior for status
                 if (selectedFilters.status.has(normalized)) {
-                    selectedFilters.status.delete(normalized);
+                    selectedFilters.status.clear();
                 } else {
+                    selectedFilters.status.clear();
                     selectedFilters.status.add(normalized);
                 }
                 break;
@@ -323,10 +380,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
         }
         
+        console.log('[Collab] handleFilterSelection', { type, value, normalized }, getSelectedFiltersDebug());
         applySearchAndFilters();
     }
 
     function removeFilterChip(type, value) {
+        const dropdown = document.getElementById('collab-filter-dropdown');
+        if (dropdown) {
+            const lowerValue = String(value).toLowerCase();
+            if (type === 'practice' || type === 'keyword' || type === 'status') {
+                dropdown.querySelectorAll(`.filter-pill[data-type="${type}"]`).forEach(p => {
+                    const pv = String(p.getAttribute('data-value') || '').toLowerCase();
+                    if (pv === lowerValue) p.classList.remove('selected');
+                });
+            } else if (type === 'dateRange') {
+                dropdown.querySelectorAll('.filter-pill[data-type="dateRange"]').forEach(p => p.classList.remove('selected'));
+            }
+        }
+
+        // For completeness, clear internal sets too (even though we recompute from DOM)
         switch (type) {
             case 'practice':
                 selectedFilters.practices.delete(value);
@@ -341,7 +413,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedFilters.dateRange = null;
                 break;
         }
-        
+
+        console.log('[Collab] removeFilterChip', { type, value }, getSelectedFiltersDebug());
         applySearchAndFilters();
     }
 
@@ -374,7 +447,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCollabPosts(posts) {
         if (!collabContentBody) return;
         if (posts.length === 0) {
-            collabContentBody.innerHTML = '<div class="no-posts-message"><h2>No collaborations posted yet.</h2><p>Be the first to share an idea!</p></div>';
+            const hasAnyPosts = allPosts && allPosts.length > 0;
+            const message = hasAnyPosts
+                ? '<div class="no-posts-message"><h2>No results match your filters.</h2><p>Try adjusting filters or clearing them.</p></div>'
+                : '<div class="no-posts-message"><h2>No collaborations posted yet.</h2><p>Be the first to share an idea!</p></div>';
+            collabContentBody.innerHTML = message;
             return;
         }
 
@@ -416,8 +493,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <button class="delete-post-btn" data-id="${post.id}" data-image-path="${post.imagePath || ''}">Delete</button>
                             </div>` : ''}
                     </div>
+                    
                     <div class="post-body">
                         ${post.imageUrl ? `<img src="${post.imageUrl}" alt="Post image" class="post-image">` : ''}
+                        <div class="post-tags post-practices-tags">
+                            ${post.practices.map(p => `<span class="post-tag practice-tag">${p.toUpperCase()}</span>`).join('')}
+                        </div>
                         <div class="post-content">
                             <div class="post-title-container">
                                 <h3 class="post-title">${post.title}</h3>
@@ -427,17 +508,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${readMoreButton}
                             <a href="#" class="view-more-link">View More...</a>
                         </div>
+                        ${post.date ? `<span class="post-datetime">Date: ${post.date}${post.time ? ', Time: ' + post.time : ''}</span>` : ''}
                     </div>
                     <div class="post-bottom-row">
                        <div class="post-meta">
                            <div class="post-tags">
-                               ${post.keywords.map(k => `<span class="post-tag keyword-tag">${k}</span>`).join('')}
+                               ${(post.keywords || []).filter(k => String(k).toLowerCase() !== 'collaboration').map(k => `<span class="post-tag keyword-tag">${k}</span>`).join('')}
                            </div>
-                           <div class="post-tags post-practices-tags">
-                               ${post.practices.map(p => `<span class="post-tag practice-tag">${p.toUpperCase()}</span>`).join('')}
-                           </div>
+                           
                            <br>
-                           ${post.date ? `<span class="post-datetime">Date: ${post.date}${post.time ? ', Time: ' + post.time : ''}</span>` : ''}
+                           
                        </div>
                        <div class="post-footer">
                            ${authorLink}
@@ -451,6 +531,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Add event listeners for new buttons (Read More, Edit, Delete)
         attachPostItemEventListeners(); 
+    }
+
+    // --- UI STATE SYNC HELPERS ---
+    function syncFilterPillsWithState() {
+        const dropdown = document.getElementById('collab-filter-dropdown');
+        if (!dropdown) return;
+
+        dropdown.querySelectorAll('.filter-pill').forEach(pill => {
+            const type = pill.getAttribute('data-type');
+            const value = pill.getAttribute('data-value');
+            const normalized = String(value).toLowerCase();
+            let shouldSelect = false;
+            if (type === 'practice') shouldSelect = selectedFilters.practices.has(normalized);
+            else if (type === 'keyword') shouldSelect = selectedFilters.keywords.has(normalized);
+            else if (type === 'status') shouldSelect = selectedFilters.status.has(normalized);
+            else if (type === 'dateRange') shouldSelect = selectedFilters.dateRange === value;
+
+            pill.classList.toggle('selected', shouldSelect);
+        });
+    }
+
+    function updateResultsCount() {
+        const chipsContainer = document.getElementById('collab-filter-chips');
+        if (!chipsContainer) return;
+        let countEl = document.getElementById('collab-results-count');
+        if (!countEl) {
+            countEl = document.createElement('span');
+            countEl.id = 'collab-results-count';
+            countEl.className = 'collab-results-count';
+            chipsContainer.insertAdjacentElement('afterend', countEl);
+        }
+        const count = filteredPosts.length;
+        countEl.textContent = `${count} result${count === 1 ? '' : 's'}`;
     }
     
     function attachPostItemEventListeners() {
@@ -605,10 +718,11 @@ document.addEventListener('DOMContentLoaded', () => {
             allPosts = posts;
             filteredPosts = posts;
             
-            renderCollabPosts(posts);
+            applySearchAndFilters();
             
             // Initialize search and filter system
             initializeSearchAndFilters();
+            updateResultsCount();
         } catch (error) {
             console.error("Error loading posts:", error);
             collabContentBody.innerHTML = '<div class="no-posts-message error"><h2>Could not load collaborations.</h2><p>Please try again later.</p></div>';
@@ -892,6 +1006,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- INITIALIZE SEARCH AND FILTERS ---
     function initializeSearchAndFilters() {
+        if (filtersInitialized) {
+            console.log('Search and filters already initialized; skipping re-bind');
+            return;
+        }
+        filtersInitialized = true;
         console.log('Initializing search and filters...');
         
         // Initialize search input
@@ -925,10 +1044,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const chipsContainer = document.getElementById('collab-filter-chips');
         if (chipsContainer) {
             chipsContainer.addEventListener('click', (e) => {
-                if (e.target.classList.contains('chip-close')) {
-                    const type = e.target.dataset.type;
-                    const value = e.target.dataset.value;
-                    removeFilterChip(type, value);
+                const closeEl = e.target.closest('.chip-close');
+                const chipEl = e.target.closest('.filter-chip');
+                const el = closeEl || chipEl;
+                if (el && chipsContainer.contains(el)) {
+                    const type = el.dataset.type || (chipEl ? chipEl.dataset.type : undefined);
+                    const value = el.dataset.value || (chipEl ? chipEl.dataset.value : undefined);
+                    console.log('[Collab] chip click remove', { type, value });
+                    if (type && typeof value !== 'undefined') {
+                        removeFilterChip(type, value);
+                    }
                 }
             });
         }
@@ -943,9 +1068,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (pill && filterDropdown.contains(pill)) {
                     const type = pill.dataset.type;
                     const value = pill.dataset.value;
-                    handleFilterSelection(type, value);
-                    // Update visual state
-                    pill.classList.toggle('selected');
+                    console.log('[Collab] pill click', { type, value });
+
+                    // Visual selection handling first
+                    if (type === 'status') {
+                        // Single-select: clear other status pills
+                        filterDropdown.querySelectorAll('.filter-pill[data-type="status"]').forEach(p => {
+                            if (p !== pill) p.classList.remove('selected');
+                        });
+                        pill.classList.toggle('selected');
+                    } else if (type === 'dateRange') {
+                        // Single-select for date range
+                        const alreadySelected = pill.classList.contains('selected');
+                        filterDropdown.querySelectorAll('.filter-pill[data-type="dateRange"]').forEach(p => p.classList.remove('selected'));
+                        if (!alreadySelected) pill.classList.add('selected');
+                    } else {
+                        // Multi-select for practices and keywords
+                        pill.classList.toggle('selected');
+                    }
+
+                    // Now recompute state from DOM and apply filters
+                    applySearchAndFilters();
                 }
             });
 
@@ -965,13 +1108,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cycleSearchPlaceholders();
     }
 
-    // Initialize search and filters immediately when DOM is ready
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('DOM loaded, initializing search and filters');
-        initializeSearchAndFilters();
-    });
-
-    // Also try to initialize immediately if DOM is already ready
+    // Initialize search and filters once, without double-binding
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             console.log('DOM loaded, initializing search and filters');

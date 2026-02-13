@@ -608,6 +608,61 @@
           right: 20px;
         }
       }
+      
+      /* JOIN hint bubble (iMessage-style) */
+      #join-hint-bubble {
+        position: fixed;
+        background: #0000ff;
+        color: #ffffff;
+        font-weight: 800;
+        font-size: 18px;
+        line-height: 1;
+        border-radius: 22px;
+        padding: 10px 16px;
+        z-index: 1100; /* Below welcome overlay (20000), above join button (1002) */
+        box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+        opacity: 0;
+        transform: translateY(6px) scale(0.98);
+        transition: opacity .25s ease, transform .25s ease;
+        pointer-events: auto;
+        white-space: nowrap;
+      }
+      #join-hint-bubble.show {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      #join-hint-bubble::after {
+        content: "";
+        position: absolute;
+        bottom: -10px;
+        left: var(--tail-left, 50%);
+        transform: translateX(-50%);
+        border-width: 10px 10px 0 10px;
+        border-style: solid;
+        border-color: #0000ff transparent transparent transparent;
+      }
+      #join-hint-bubble .close-x {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #d9d9d9;
+        border: 1px solid #bfbfbf;
+        color: #333;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      #join-hint-bubble .label { user-select: none; }
+      @media (max-width: 480px) {
+        #join-hint-bubble { font-size: 16px; padding: 9px 14px; }
+      }
     </style>
   </head>
 
@@ -715,7 +770,9 @@
         <img id="popup-image" src="" alt="Profile Image" />
         <h2 id="popup-title"></h2>
         <div class="social-icons"></div>
+        
         <div class="popup-spacer"></div>
+        
         <div class="scroll-indicator" aria-hidden="true">
           <svg class="chev" width="24" height="16" viewBox="0 0 24 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M2 2 L12 14 L22 2" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -770,6 +827,61 @@
     </div>
 
     <script type="module" src="network-firebase-setup.js"></script>
+    
+    <!-- Auth redirect check -->
+    <script type="module">
+      // Check if user is logged in, redirect to welcome.html if not
+      // Skip redirect if: in iframe, from welcome.html, has explicit access, or has query parameters
+      const isInIframe = window !== window.parent;
+      const fromWelcome = document.referrer && document.referrer.includes('welcome.html');
+      const hasExplicitAccess = sessionStorage.getItem('kr_from_welcome') === '1';
+      
+      // Check if there are any query parameters (like ?link=username)
+      const urlParams = new URLSearchParams(window.location.search);
+      const hasQueryParams = urlParams.toString().length > 0;
+      
+      // If accessing with query params, grant session access
+      if (hasQueryParams && !isInIframe) {
+        sessionStorage.setItem('kr_from_welcome', '1');
+      }
+      
+      if (!isInIframe && !fromWelcome && !hasExplicitAccess && !hasQueryParams) {
+        // Wait for Firebase auth state to be determined
+        let checkCount = 0;
+        const maxChecks = 30; // Max 3 seconds (30 * 100ms)
+        
+        const checkAuth = setInterval(() => {
+          checkCount++;
+          
+          // Wait until auth state is fully resolved
+          if (window.networkFirebaseUtils && window.networkFirebaseUtils.authStateResolved) {
+            const user = window.networkFirebaseUtils.currentUser;
+            
+            clearInterval(checkAuth);
+            
+            // Only redirect if user is NOT logged in
+            if (!user) {
+              console.log('[index.html] User not logged in, redirecting to welcome.html');
+              window.location.href = 'welcome.html';
+            } else {
+              console.log('[index.html] User logged in, staying on index.html');
+            }
+          }
+          
+          // Stop checking after max attempts (assume access granted to avoid blocking)
+          if (checkCount >= maxChecks) {
+            console.log('[index.html] Auth check timeout, allowing access');
+            clearInterval(checkAuth);
+          }
+        }, 100);
+      } else {
+        // Clear the session flag if it was set (but not in iframe or if has query params)
+        if (!isInIframe && !hasQueryParams) {
+          sessionStorage.removeItem('kr_from_welcome');
+        }
+      }
+    </script>
+    
     <script type="module" src="network-app.js"></script>
     <script src="loading-canvas-animation.js"></script>
     <script src="mobile-nav.js"></script>
@@ -820,6 +932,17 @@
           joinKrButton.addEventListener("click", function (e) {
             e.preventDefault();
 
+            // Play click sound
+            try {
+              var audio = document.getElementById('node-click-audio');
+              if (audio) { try { audio.currentTime = 0; } catch(_) {} audio.play().catch(function(){}); }
+            } catch (e) { /* ignore */ }
+
+            // Subtle haptic feedback (mobile)
+            try {
+              if (window.navigator && window.navigator.vibrate) { window.navigator.vibrate(30); }
+            } catch (_) { /* ignore */ }
+
             // Get button position
             const rect = joinKrButton.getBoundingClientRect();
             const buttonCenterX = rect.left + rect.width / 2;
@@ -864,8 +987,8 @@
               // Decide which experience to load based on auth
               if (window.networkFirebaseUtils && window.networkFirebaseUtils.currentUser) {
                 // Logged-in → DISCOVER feed with dark theme
-                popupContent.style.background = '#1e1e1e';
-                popupBubble.style.background = '#1e1e1e';
+                popupContent.style.background = '#161616';
+                popupBubble.style.background = '#161616';
 
                 if (window.discoverFeed) {
                   window.discoverFeed.initDiscoverFeed(popupContent);
@@ -905,7 +1028,14 @@
         }
 
         if (closePopupBtn) {
-          closePopupBtn.addEventListener("click", closePopup);
+          closePopupBtn.addEventListener("click", function(){
+            try {
+              var audio = document.getElementById('node-click-audio');
+              if (audio) { try { audio.currentTime = 0; } catch(_) {} audio.play().catch(function(){}); }
+            } catch (e) { /* ignore */ }
+            try { if (window.navigator && window.navigator.vibrate) { window.navigator.vibrate(30); } } catch (_) { /* ignore */ }
+            closePopup();
+          });
         }
 
         // Close on overlay click (outside content)
@@ -970,6 +1100,126 @@
           }
         }
       });
+    </script>
+
+    <!-- JOIN hint bubble controller -->
+    <script>
+      (function(){
+        const SESSION_KEY = 'kr_join_hint_shown_session_v1_0';
+        const SHOW_DELAY_MS = 5000; // starts AFTER welcome overlay closes
+        const AUTO_HIDE_MS = 6000;
+
+        function isLoggedIn(){
+          try { return !!(window.networkFirebaseUtils && window.networkFirebaseUtils.currentUser); }
+          catch(_) { return false; }
+        }
+
+        function positionBubble(bubble, btn){
+          if (!bubble || !btn) return;
+          const br = btn.getBoundingClientRect();
+
+          // Temporarily measure
+          bubble.style.visibility = 'hidden';
+          bubble.style.left = '0px';
+          bubble.style.top = '-9999px';
+          document.body.appendChild(bubble);
+          const bubR = bubble.getBoundingClientRect();
+
+          const margin = 8;
+          let left = br.left + (br.width/2) - (bubR.width/2);
+          left = Math.max(margin, Math.min(left, window.innerWidth - bubR.width - margin));
+
+          let top = br.top - bubR.height - 14 - 5; // shift entire bubble 5px up
+          top = Math.max(margin, top);
+
+          // Tail alignment relative to bubble
+          const bubbleCenter = left + bubR.width/2;
+          const buttonCenter = br.left + br.width/2;
+          const tailOffsetWithinBubble = Math.max(14, Math.min(bubR.width-14, (buttonCenter - left)));
+          bubble.style.setProperty('--tail-left', tailOffsetWithinBubble + 'px');
+
+          bubble.style.left = left + 'px';
+          bubble.style.top = top + 'px';
+          bubble.style.visibility = 'visible';
+        }
+
+        function makeBubble(){
+          const el = document.createElement('div');
+          el.id = 'join-hint-bubble';
+          el.setAttribute('role','button');
+          el.setAttribute('tabindex','0');
+          el.setAttribute('aria-label','JOIN US');
+          el.innerHTML = '<span class="label">JOIN US!</span><button class="close-x" aria-label="Close">×</button>';
+          return el;
+        }
+
+        function showJoinHint(){
+          try { if (sessionStorage.getItem(SESSION_KEY) === '1') return; } catch(_){}
+          if (isLoggedIn()) return;
+
+          const joinBtn = document.getElementById('join-kr-button-fixed');
+          if (!joinBtn) return;
+
+          const bubble = makeBubble();
+          document.body.appendChild(bubble);
+          positionBubble(bubble, joinBtn);
+
+          let hideTimer = null;
+          const scheduleHide = () => {
+            clearTimeout(hideTimer);
+            hideTimer = setTimeout(hide, AUTO_HIDE_MS);
+          };
+
+          function hide(){
+            try { sessionStorage.setItem(SESSION_KEY,'1'); } catch(_){ }
+            bubble.classList.remove('show');
+            setTimeout(() => { bubble.remove(); }, 220);
+            window.removeEventListener('resize', onPos);
+            window.removeEventListener('scroll', onPos, true);
+            document.removeEventListener('keydown', onEsc);
+          }
+
+          function onPos(){ positionBubble(bubble, joinBtn); }
+          function onEsc(e){ if (e.key === 'Escape') hide(); }
+
+          bubble.addEventListener('click', (e)=>{
+            if (e.target && e.target.classList && e.target.classList.contains('close-x')) { hide(); return; }
+            try {
+              const audio = document.getElementById('node-click-audio');
+              if (audio) { try { audio.currentTime = 0; } catch(_){} audio.play().catch(()=>{}); }
+            } catch(_){ }
+            try { if (window.navigator && window.navigator.vibrate) { window.navigator.vibrate(30); } } catch(_){ }
+            const btn = document.getElementById('join-kr-button-fixed');
+            if (btn) btn.click();
+            hide();
+          });
+          bubble.addEventListener('keydown', (e)=>{
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const btn = document.getElementById('join-kr-button-fixed'); if (btn) btn.click(); hide(); }
+          });
+
+          window.addEventListener('resize', onPos);
+          window.addEventListener('scroll', onPos, true);
+          document.addEventListener('keydown', onEsc);
+
+          requestAnimationFrame(()=>{ bubble.classList.add('show'); });
+          scheduleHide();
+        }
+
+        function scheduleAfterWelcome(){
+          // If welcome overlay is already closed, start delay immediately; else wait for event.
+          if (window.__krWelcomeClosed === true) {
+            setTimeout(showJoinHint, SHOW_DELAY_MS);
+          } else {
+            const onClosed = () => {
+              window.removeEventListener('kr_welcome_closed', onClosed);
+              setTimeout(showJoinHint, SHOW_DELAY_MS);
+            };
+            window.addEventListener('kr_welcome_closed', onClosed);
+          }
+        }
+
+        document.addEventListener('DOMContentLoaded', scheduleAfterWelcome);
+      })();
     </script>
 
     <!-- Notification Popup -->
@@ -1094,7 +1344,7 @@
             Welcome to the<br /><span class="kr-network-text">KR NETWORK</span>
           </h1>
           <p class="beta-info">
-            (beta v1.4) 📍 <span class="location-text">LONDON</span>
+            (beta v1.6) 📍 <span class="location-text">LONDON</span>
           </p>
         </div>
 
@@ -1206,46 +1456,59 @@
         overlay.hidden = false;
         overlay.classList.add('visible');
         setTimeout(() => { if (enterBtn) enterBtn.focus(); }, 50);
-        if (enterBtn) enterBtn.addEventListener('click', closeWelcome, { once: true });
+        if (enterBtn) {
+          enterBtn.addEventListener('click', function(){
+            try {
+              var audio = document.getElementById('node-click-audio');
+              if (audio) { try { audio.currentTime = 0; } catch(_) {} audio.play().catch(function(){}); }
+            } catch (e) { /* ignore */ }
+            closeWelcome();
+          }, { once: true });
+        }
         document.addEventListener('keydown', function onKey(e){
           if (e.key === 'Escape' && !overlay.hidden) { closeWelcome(); document.removeEventListener('keydown', onKey); }
         });
       }
 
       document.addEventListener('DOMContentLoaded', function() {
-        let seen = false;
-        try { seen = localStorage.getItem(WELCOME_SEEN_KEY) === '1'; } catch(e) { seen = false; }
-        const search = (typeof window !== 'undefined' && window.location) ? window.location.search : '';
-        const hasAnyQuery = search && search.length > 1;
+        // Track if user arrived via profile deep link
+        const search = window.location.search;
         const hasProfileQuery = new URLSearchParams(search).has('link');
-        window.__krHasQueryOnLoad = !!hasAnyQuery;
         window.__krHasProfileOnLoad = !!hasProfileQuery;
-        if (seen || hasAnyQuery) {
-          // Already seen – immediately allow downstream animations
-          window.__krWelcomeClosed = true;
-          window.dispatchEvent(new Event('kr_welcome_closed'));
-        } else {
-          window.__krWelcomeClosed = false;
-          showWelcome();
+        
+        // Clear welcome flag if user landed directly on profile link (not from welcome.html)
+        const referrer = document.referrer || '';
+        const cameFromWelcomePage = referrer.includes('welcome.html');
+        if (!cameFromWelcomePage && hasProfileQuery) {
+          try { sessionStorage.removeItem('kr_from_welcome'); } catch (e) {}
         }
+        
+        // Signal that welcome is closed (overlay only shows after profile modal closes)
+        window.__krWelcomeClosed = true;
+        window.dispatchEvent(new Event('kr_welcome_closed'));
       });
 
-      // Expose a safe controller for other scripts (e.g., show after profile modal closes)
+      // Controller for showing welcome after profile modal closes
       window.krWelcomeControl = {
-        show: showWelcome,
         maybeShowAfterProfileClose: function() {
           try {
+            // Only show if user arrived via profile deep link
+            if (!window.__krHasProfileOnLoad) return;
+            
+            // Only show if user is NOT logged in
+            const isLoggedIn = window.networkFirebaseUtils && window.networkFirebaseUtils.currentUser;
+            if (isLoggedIn) return;
+            
+            // Respect user's "don't show again" choice and session closure
             const seen = localStorage.getItem(WELCOME_SEEN_KEY) === '1';
             const closedThisSession = sessionStorage.getItem(SESSION_CLOSED_KEY) === '1';
-            if (seen || closedThisSession) return; // Respect user choice + only once per session
-            if (window.__krHasProfileOnLoad) {
-              // Temporarily pause hints if they already started
-              window.__krWelcomeClosed = false;
-              showWelcome();
-            }
+            if (seen || closedThisSession) return;
+            
+            // Show welcome overlay
+            window.__krWelcomeClosed = false;
+            showWelcome();
           } catch (e) {
-            // On storage error, behave conservatively and show once
-            if (window.__krHasProfileOnLoad) showWelcome();
+            // On error, don't show
           }
         }
       };
