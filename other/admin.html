@@ -4,22 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - KR</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="icon" type="image/png" href="static/img/KRICON.png">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="icon" type="image/png" href="/static/img/KRICON.png">
     <script>
         console.log('admin page loaded');
     </script>
 </head>
 <body class="collab-page-body">
     <nav class="kr-navbar">
-        <a href="index.html" style="text-decoration:none;color:#ffffff;"><img src="static/img/networkicon.png" class="nav-icon" alt="Network"> NETWORK</a>
-        <a href="collab.html" style="text-decoration:none;color:#ffffff;"><img src="static/img/collabicon.png" class="nav-icon" alt="Collab"> COLLAB</a>
-        <a href="profile.html" style="text-decoration:none;color:#ffffff;">JOIN</a>
-        <a href="admin.html" style="text-decoration:none;color:#ff00ff;">ADMIN</a>
+        <a href="/index.html" style="text-decoration:none;color:#ffffff;"><img src="static/img/networkicon.png" class="nav-icon" alt="Network"> NETWORK</a>
+        <a href="/collab.html" style="text-decoration:none;color:#ffffff;"><img src="static/img/collabicon.png" class="nav-icon" alt="Collab"> COLLAB</a>
+        <a href="/profile.html" style="text-decoration:none;color:#ffffff;">JOIN</a>
+        <a href="/other/admin.html" style="text-decoration:none;color:#ff00ff;">ADMIN</a>
     </nav>
 
     <a href="index.html">
-        <img src="static/img/WHITE KRLOGO.png" alt="KR Logo" id="fixed-top-logo">
+        <img src="/static/img/WHITE KRLOGO.png" alt="KR Logo" id="fixed-top-logo">
     </a>
 
     <div id="loading-indicator" style="display: none; text-align: center; padding: 50px; color: white;">Loading...</div>
@@ -28,7 +28,7 @@
         <h1>Access Denied</h1>
         <p>You do not have permission to view this page.</p>
         <p style="margin-top: 15px;">If you are an administrator, please log in.</p>
-        <a href="profile.html" style="display: inline-block; padding: 10px 20px; background-color: #0000ff; color: white; text-decoration: none; border-radius: 50px; margin-top: 20px;">Login</a>
+        <a href="/profile.html" style="display: inline-block; padding: 10px 20px; background-color: #0000ff; color: white; text-decoration: none; border-radius: 50px; margin-top: 20px;">Login</a>
     </div>
 
     <div id="admin-content" style="display: none; padding-top: 120px; color: white;">
@@ -238,8 +238,8 @@
         </div>
     </div>
 
-    <script type="module" src="collab-firebase-setup.js"></script>
-    <script type="module" src="admin-app.js"></script>
+    <script type="module" src="/static/js/firebase/collab-firebase-setup.js"></script>
+    <script type="module" src="/static/js/pages/admin-app.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css" rel="stylesheet" />
@@ -384,14 +384,14 @@
     background-repeat: no-repeat;
 }
 .default-icon {
-    background-image: url('static/img/defaultlink-icon.jpg');
+    background-image: url('/static/img/defaultlink-icon.jpg');
 }
 .large-image-icon {
-    background-image: url('static/img/largeimg-icon.jpg');
+    background-image: url('/static/img/largeimg-icon.jpg');
     border-radius: 8px;
 }
 .carousel-icon {
-    background-image: url('static/img/carousel-icon.jpg');
+    background-image: url('/static/img/carousel-icon.jpg');
 }
 .block-type-label {
     font-size: 0.95em;
@@ -521,5 +521,77 @@
 
 .cropper-buttons {
     text-align: center;
+}
+
+/* User Info Card Styles */
+.user-info-card {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+    border: 1px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.user-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.user-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 12px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    transition: all 0.2s ease;
+}
+
+.user-info-item:hover {
+    border-color: #0000ff;
+    box-shadow: 0 2px 6px rgba(0, 0, 255, 0.1);
+}
+
+.user-info-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #666;
+}
+
+.user-info-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: #222;
+    word-break: break-word;
+}
+
+/* Modal Delete Button */
+.admin-modal-delete-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.admin-modal-delete-btn:hover {
+    background-color: #c82333;
+    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+}
+
+.admin-modal-delete-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 </style> 

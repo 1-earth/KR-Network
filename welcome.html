@@ -6,6 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Welcome to KR NETWORK</title>
     <link rel="icon" type="image/png" href="static/img/KRICON.png">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.170/build/three.module.js",
+            "jsm/": "https://cdn.jsdelivr.net/npm/three@0.170/examples/jsm/"
+        }
+    }
+    </script>
     <style>
         * {
             margin: 0;
@@ -78,7 +86,7 @@
             align-items: center;
             justify-content: flex-start;
             padding: 30px 20px 0px;
-            z-index: 1;
+            z-index: 10000;
         }
 
         /* Logged In User Status - Matching index.html */
@@ -94,9 +102,13 @@
             border-radius: 60px;
             border: 0.5px solid #ffffff;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            z-index: 1001;
-            transition: background-color 0.2s ease-in-out;
+            z-index: 999999;
+            transition: background-color 0.2s ease-in-out, transform 0.4s ease-in-out;
             text-decoration: none;
+        }
+
+        #logged-in-user-status.hide-on-iframe {
+            transform: translateY(-100px);
         }
 
         #logged-in-user-status:hover {
@@ -125,10 +137,11 @@
 
         .hero-content {
             text-align: center;
-            z-index: 1;
+            z-index: 10000;
             padding: 5px 20px 0;
             max-width: 900px;
             width: 100%;
+            position: relative;
         }
 
         .kr-logo {
@@ -136,11 +149,13 @@
             height: 70px;
             margin-bottom: 12px;
             animation: fadeInDown 1s ease;
+            position: relative;
+            z-index: 10000;
         }
 
         .hero-content h2 {
             font-size: 15px;
-            font-weight: 400;
+            /* font-weight: 400; */
             /* margin-bottom: 6px; */
             letter-spacing: 1px;
             animation: fadeIn 1s ease 0.2s both;
@@ -293,11 +308,13 @@
             text-align: center;
             margin-top: auto;
             padding: 0 20px 15px;
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.683))
+                    drop-shadow(0 0 20px rgba(255, 255, 255, 0.1));
         }
 
         .peek-indicator {
             font-size: 11px;
-            color: #888;
+            color: #9d9d9d;
             margin-bottom: 0;
             display: flex;
             align-items: center;
@@ -407,12 +424,12 @@
         }
 
         .iframe-overlay-content h3 {
-            font-size: 28px;
-            margin-bottom: 10px;
+            font-size: 34px;
+            margin-bottom: 20px;
         }
 
         .iframe-overlay-content p {
-            font-size: 16px;
+            font-size: 20px;
             color: #ccc;
             margin-bottom: 20px;
         }
@@ -429,18 +446,60 @@
             transition: all 0.3s ease;
             display: inline-block;
             text-decoration: none;
+            box-shadow: 0 0 20px rgba(255, 136, 0, 0.6),
+                0 0 40px rgba(255, 136, 0, 0.4),
+                0 0 60px rgba(255, 136, 0, 0.2);
         }
 
         .explore-network-btn:hover {
             background-color: #ff9922;
             border-color: #ff9922;
             transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(255, 136, 0, 0.8),
+                0 0 50px rgba(255, 136, 0, 0.6),
+                0 0 75px rgba(255, 136, 0, 0.4),
+                0 10px 30px rgba(255, 136, 0, 0.3);
+        }
+
+        /* Fullscreen Button */
+        .fullscreen-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(255, 136, 0, 0.9);
+            color: white;
+            border: 2px solid #ff8800;
+            padding: 5px 10px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            z-index: 5;
+            box-shadow: 0 0 15px rgba(255, 136, 0, 0.5),
+                0 0 30px rgba(255, 136, 0, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .fullscreen-btn {
+                bottom: 70px;
+            }
+        }
+
+        .fullscreen-btn:hover {
+            background-color: #ff9922;
+            border-color: #ff9922;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 136, 0, 0.8),
+                0 0 40px rgba(255, 136, 0, 0.6),
+                0 0 60px rgba(255, 136, 0, 0.4);
         }
 
         /* Stats Section */
         .stats-section {
             background: #181818;
-            padding: 30px 20px 80px;
+            padding: 0px 20px 80px;
             position: relative;
             z-index: 1;
             border-bottom: 0.5px solid rgb(157, 157, 157);
@@ -458,11 +517,12 @@
 
         .stat-card {
             text-align: center;
-            padding: 40px 20px;
-            background: rgba(255, 136, 0, 0.05);
-            border: 2px solid rgba(255, 136, 0, 0.2);
+            padding: 20px 20px;
+            background: rgba(138, 138, 138, 0.05);
+            /* border: 2px solid rgba(255, 136, 0, 0.2); */
             border-radius: 12px;
             transition: all 0.3s ease;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         .stat-card:hover {
@@ -471,11 +531,21 @@
             transform: translateY(-5px);
         }
 
+        .stat-card2:hover {
+            background: rgba(105, 179, 162, 0.1);
+            border-color: rgba(255, 136, 0, 0.4);
+            transform: translateY(-5px);
+        }
+
         .stat-number {
-            font-size: 48px;
+            font-size: 40px;
             font-weight: 700;
             color: #ff8800;
             margin-bottom: 10px;
+        }
+
+        .stat-number2 {
+            color: #69b3a2;
         }
 
         .stat-label {
@@ -539,7 +609,7 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
-            background: #000000;
+            background: #181818;
         }
 
         .center-text {
@@ -616,7 +686,7 @@
             }
 
             .hero-content h1 {
-                font-size: 32px;
+                font-size: 42px;
                 margin-bottom: 10px;
             }
 
@@ -626,7 +696,7 @@
             }
 
             .hero-tagline {
-                font-size: 14px;
+                font-size: 20px;
                 margin-bottom: 14px;
             }
 
@@ -642,7 +712,7 @@
             }
 
             .cta-button {
-                padding: 9px 20px;
+                /* padding: 9px 20px; */
                 font-size: 13px;
             }
 
@@ -653,8 +723,8 @@
 
             .features-grid {
                 grid-template-columns: 1fr;
-                gap: 10px;
-                margin-bottom: 20px;
+                gap: 6px;
+                margin-bottom: 10px;
             }
 
             .feature-card {
@@ -737,7 +807,7 @@
             }
 
             .iframe-container iframe {
-                height: 400px;
+                height: 80vh;
             }
 
             .network-preview-section h2 {
@@ -770,12 +840,15 @@
         /* KR Creatives Carousel */
         .kr-creatives-section {
             padding: 40px 0px 80px;
+            position: relative;
+            z-index: 10;
         }
 
         .kr-creatives-carousel-wrapper {
             position: relative;
             width: 100%;
             overflow: hidden;
+            z-index: 10;
         }
 
         .kr-creatives-carousel {
@@ -807,6 +880,7 @@
             top: 0;
             bottom: 0;
             width: 100px;
+            z-index: 11;
             pointer-events: none;
             z-index: 2;
         }
@@ -840,6 +914,8 @@
             text-align: center;
             transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
             cursor: pointer;
+            position: relative;
+            z-index: 10;
         }
 
         .creative-card:hover {
@@ -900,6 +976,8 @@
                     rgba(255, 255, 255, 0.05) 100%);
             background-size: 200% 100%;
             animation: skeleton-loading 1.5s infinite;
+            position: relative;
+            z-index: 10;
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
@@ -1092,6 +1170,21 @@
             border-top: 1px solid #333;
         }
 
+        .footer-content-bottom{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: #181818;
+            color: #a4a4a4;
+        }
+
+        .footer-content-bottom a {
+            color: #6a8aaf;
+            /* text-decoration: none; */
+        }
+
         .recent-comment-line {
             display: flex;
             align-items: flex-start;
@@ -1206,11 +1299,90 @@
             .max66 {
                 max-width: 100%;
             }
+
+            #welcome-globe-canvas {
+                right: -10%;
+                width: 70%;
+                height: 70%;
+            }
+        }
+
+        /* Globe Canvas Styles */
+        .final-mission-content {
+            position: relative;
+            padding: 20px 20px;
+            max-width: 800px;
+            margin: 0px;
+            min-height: 600px;
+        }
+
+        #welcome-globe-canvas {
+            position: absolute;
+            top: 40%;
+            right: -35%;
+            transform: translateY(-50%);
+            width: 80%;
+            height: 80%;
+            z-index: 0;
+            pointer-events: all;
+            opacity: 0.85;
+        }
+
+        @media (min-width: 1100px) {
+            #welcome-globe-canvas {
+            
+            right: -50%;
+           
+        }
+
+        @media (min-width: 1400px) {
+            #welcome-globe-canvas {
+            
+            right: -70%;
+           
+        }
+        }
+
+        .final-mission-content h2,
+        .final-mission-content p,
+        .final-mission-content a {
+            position: relative;
+            z-index: 1;
+        }
+
+        .final-mission-title {
+            margin-bottom: 20px;
+        }
+
+        /* Intro Globe Overlay */
+        #intro-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #181818;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s ease;
+        }
+
+        #intro-globe-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
         }
     </style>
 </head>
 
 <body>
+    <!-- Intro Globe Animation Overlay -->
+    <div id="intro-overlay">
+        <canvas id="intro-globe-canvas"></canvas>
+    </div>
+
     <!-- Fixed Video Background -->
     <video id="background-video" autoplay loop muted playsinline>
         <source src="static/video/LOOPBACKKR.mp4" type="video/mp4">
@@ -1236,7 +1408,7 @@
             <div class="cta-buttons">
                 <a href="index.html" class="cta-button primary welcome-btn"
                     onclick="sessionStorage.setItem('kr_from_welcome', '1')">Explore the Network →</a>
-                <a href="#network-preview" class="cta-button secondary welcome-btn">Learn More</a>
+                <a href="#main-body-content" class="cta-button secondary welcome-btn">Learn More</a>
             </div>
         </div>
 
@@ -1284,16 +1456,23 @@
 
         <div class="iframe-container">
             <iframe src="index.html" title="Network Preview"></iframe>
-            <div class="iframe-overlay"
-                onclick="sessionStorage.setItem('kr_from_welcome', '1'); window.location.href='index.html'">
+            <div class="iframe-overlay" id="iframe-overlay">
                 <div class="iframe-overlay-content">
                     <h3>Click to Explore</h3>
-                    <p>Dive into the interactive network</p>
-                    <a href="index.html" class="explore-network-btn"
-                        onclick="event.stopPropagation(); sessionStorage.setItem('kr_from_welcome', '1')">Enter
+                    <p>Discover artists and their connections, <br>
+                        Click on any node to dive into their profile</p>
+                    <a href="#" class="explore-network-btn"
+                        onclick="event.preventDefault(); document.getElementById('iframe-overlay').style.display = 'none'; document.getElementById('fullscreen-btn').style.display = 'block';">Enter
                         Network</a>
                 </div>
             </div>
+            <a href="index.html" class="fullscreen-btn" id="fullscreen-btn" style="display: none;"
+                onclick="sessionStorage.setItem('kr_from_welcome', '1')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 3px;">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                </svg>
+                View Fullscreen
+            </a>
         </div>
     </section>
 
@@ -1304,24 +1483,24 @@
 
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-number">30+</div>
+                <div class="stat-number" id="active-creatives-count" data-target="30">30+</div>
                 <div class="stat-label">Active Creatives</div>
             </div>
 
-            <div class="stat-card">
-                <div class="stat-number">28+</div>
+            <div class="stat-card stat-card2">
+                <div class="stat-number stat-number2" id="collaborations-count" data-target="28">28+</div>
                 <div class="stat-label">Collaborations</div>
             </div>
 
-            <div class="stat-card">
-                <div class="stat-number">8+</div>
+            <div class="stat-card stat-card2">
+                <div class="stat-number stat-number2" id="practices-count" data-target="17">17+</div>
                 <div class="stat-label">Creative Practices</div>
             </div>
         </div>
     </section>
 
     <!-- Main Body Content Section -->
-    <section class="main-body-content-section">
+    <section class="main-body-content-section" id="main-body-content">
         <div class="main-body-content-grid">
             <div class="main-body-content-placeholder">
                 <!-- Future content will go here -->
@@ -1372,10 +1551,11 @@
             <div class="kr-creatives-fade-right"></div>
         </div>
         <div class="final-mission-content">
+            <canvas id="welcome-globe-canvas"></canvas>
             <h2 class="main-body-content-title main-body-text final-mission-title">
                 Our Mission:<br>
                 Real change, <br>
-                Shared elevation,<br>
+                Shared elevation, <br>
                 <span class="main-body-text-span">A better space for new creatives.</span>
             </h2>
             <p class="main-body-text max66">
@@ -1403,6 +1583,7 @@
                 <br><br>
 
                 <span class="main-body-text-span2">- George Symonds 2025</span>
+                <br><br>
             </p>
             <a href="index.html" class="cta-button primary welcome-btn main-body-text-btn"
                 onclick="sessionStorage.setItem('kr_from_welcome', '1')">So If You Haven’t Already, Take Part</a>
@@ -1417,13 +1598,14 @@
                 <img src="static/img/KRSPIN-optimize.gif" alt="KR Logo" class="kr-logo">
             </div>
             <div class="footer-content-bottom">
-                <p>© 2025 KR Network. All rights reserved. Designed & Coded by 🌐 1 EARTH PRODUCTIONS</p>
+                <p>Designed & Coded by 🌐 <a href="https://1-earth.world" target="_blank">1 EARTH PRODUCTIONS</a></p>
+                <p>© 2025 KR Network. All rights reserved.</p>
             </div>
         </div>
     </footer>
 
     <script>
-        // Enhanced scroll effect for video overlay gradient
+        // Enhanced scroll effect for video overlay gradient and user status button
         window.addEventListener('scroll', function () {
             const scrolled = window.pageYOffset;
             const landingHeight = document.querySelector('.landing-section').offsetHeight;
@@ -1431,12 +1613,31 @@
 
             // Calculate opacity for gradient intensification
             const scrollPercent = Math.min(scrolled / (landingHeight * 0.8), 1);
-            const gradientOpacity = 0.3 + (scrollPercent * 0.7); // From 0.3 to 1
+            const gradientOpacity = 1.0 + (scrollPercent * 0.5); // From 1.0 to 1.5 (gradually darker)
 
             overlay.style.background = `linear-gradient(to bottom, 
                 rgba(0, 0, 0, ${gradientOpacity * 0.3}) 0%, 
                 rgba(0, 0, 0, ${gradientOpacity * 0.5}) 50%, 
                 rgba(0, 0, 0, ${gradientOpacity * 0.9}) 100%)`;
+
+            // Hide user status button when iframe section is centered on screen
+            const networkPreviewSection = document.getElementById('network-preview');
+            const userStatusBtn = document.getElementById('logged-in-user-status');
+            
+            if (networkPreviewSection && userStatusBtn) {
+                const rect = networkPreviewSection.getBoundingClientRect();
+                const windowHeight = window.innerHeight;
+                
+                // Check if iframe section is in the middle of the viewport
+                // Only trigger when the section occupies the center portion of the screen
+                const isCentered = rect.top < windowHeight * 0.5 && rect.bottom > windowHeight * 0.5;
+                
+                if (isCentered) {
+                    userStatusBtn.classList.add('hide-on-iframe');
+                } else {
+                    userStatusBtn.classList.remove('hide-on-iframe');
+                }
+            }
         });
 
         // Video plays continuously since it's fixed background
@@ -1814,16 +2015,11 @@
 
                 // Start auto-scroll after posts are loaded and rendered
                 setTimeout(() => {
-                    console.log('Attempting to start auto-scroll...');
-                    console.log('Slideshow scrollWidth:', slideshow.scrollWidth, 'clientWidth:', slideshow.clientWidth);
-
                     // Only start if there's something to scroll
                     if (slideshow.scrollWidth > slideshow.clientWidth) {
                         isInitialized = true;
                         scrollEventEnabled = false; // Keep disabled during auto-scroll
                         startAutoScroll();
-                    } else {
-                        console.log('Not enough content to scroll');
                     }
                 }, 1500);
 
@@ -1836,36 +2032,25 @@
         // Auto-scroll functionality
         function startAutoScroll() {
             if (autoScrollInterval) {
-                console.log('Auto-scroll already running');
                 return;
             }
 
-            console.log('Starting auto-scroll');
             isAutoScrolling = true;
 
             // Add class to disable smooth scrolling
             slideshow.classList.add('auto-scrolling');
             slideshow.classList.remove('user-scrolling');
 
-            let scrollCount = 0;
             autoScrollInterval = setInterval(() => {
                 if (!isAutoScrolling) {
-                    console.log('Auto-scroll paused via flag, isAutoScrolling:', isAutoScrolling);
                     return;
                 }
 
                 const maxScroll = slideshow.scrollWidth - slideshow.clientWidth;
                 const currentScroll = slideshow.scrollLeft;
 
-                // Only log occasionally to avoid spam
-                if (scrollCount % 30 === 0) {
-                    console.log('Auto-scrolling:', currentScroll.toFixed(2), '/', maxScroll, 'isAutoScrolling:', isAutoScrolling, 'scrollEventEnabled:', scrollEventEnabled);
-                }
-                scrollCount++;
-
                 // Stop at end
                 if (currentScroll >= maxScroll - 5) {
-                    console.log('Reached end, stopping auto-scroll');
                     stopAutoScroll();
                     return;
                 }
@@ -1882,7 +2067,6 @@
                 isAutoScrolling = false;
                 slideshow.classList.remove('auto-scrolling');
                 slideshow.classList.add('user-scrolling');
-                console.log('Auto-scroll stopped');
             }
         }
 
@@ -1893,13 +2077,10 @@
             scrollEventEnabled = true; // Enable user scroll detection
             slideshow.classList.remove('auto-scrolling');
             slideshow.classList.add('user-scrolling');
-            console.log('Auto-scroll paused');
         }
 
         function resumeAutoScroll() {
             // Always restart to ensure it's working
-            console.log('Resuming auto-scroll by restarting interval');
-
             // Clear any existing interval first
             if (autoScrollInterval) {
                 clearInterval(autoScrollInterval);
@@ -1917,14 +2098,12 @@
         let isHovering = false;
 
         slideshow.addEventListener('mouseenter', () => {
-            console.log('Mouse entered slideshow');
             isHovering = true;
             scrollEventEnabled = true; // Enable scroll detection for user
             pauseAutoScroll();
         });
 
         slideshow.addEventListener('mouseleave', () => {
-            console.log('Mouse left slideshow');
             isHovering = false;
             resumeAutoScroll();
         });
@@ -1936,14 +2115,12 @@
         slideshow.addEventListener('wheel', (e) => {
             if (!isInitialized) return;
 
-            console.log('User wheel scroll detected');
             isUserScrolling = true;
             scrollEventEnabled = true;
             pauseAutoScroll();
 
             clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(() => {
-                console.log('2 seconds passed - resuming auto-scroll');
                 isUserScrolling = false;
                 resumeAutoScroll();
             }, 2000);
@@ -1952,7 +2129,6 @@
         slideshow.addEventListener('touchstart', () => {
             if (!isInitialized) return;
 
-            console.log('User touch detected');
             isUserScrolling = true;
             scrollEventEnabled = true;
             pauseAutoScroll();
@@ -1963,7 +2139,6 @@
 
             clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(() => {
-                console.log('2 seconds passed after touch - resuming auto-scroll');
                 isUserScrolling = false;
                 resumeAutoScroll();
             }, 2000);
@@ -2060,7 +2235,6 @@
         function startCreativesAutoScroll() {
             if (creativesInterval) return; // Already running
 
-            console.log('Starting KR Creatives auto-scroll');
             creativesCarousel.classList.add('auto-scrolling');
             creativesCarousel.classList.remove('user-scrolling');
 
@@ -2083,7 +2257,6 @@
             if (creativesInterval) {
                 clearInterval(creativesInterval);
                 creativesInterval = null;
-                console.log('KR Creatives auto-scroll paused');
             }
             creativesCarousel.classList.remove('auto-scrolling');
             creativesCarousel.classList.add('user-scrolling');
@@ -2092,7 +2265,6 @@
         function resumeCreativesAutoScroll() {
             if (isCreativesHovering || isCreativesUserScrolling) return;
 
-            console.log('Resuming KR Creatives auto-scroll');
             creativesCarousel.classList.add('auto-scrolling');
             creativesCarousel.classList.remove('user-scrolling');
 
@@ -2105,13 +2277,11 @@
 
         // Pause on hover
         creativesCarousel.addEventListener('mouseenter', () => {
-            console.log('Mouse entered KR Creatives carousel');
             isCreativesHovering = true;
             pauseCreativesAutoScroll();
         });
 
         creativesCarousel.addEventListener('mouseleave', () => {
-            console.log('Mouse left KR Creatives carousel');
             isCreativesHovering = false;
             resumeCreativesAutoScroll();
         });
@@ -2122,13 +2292,11 @@
         creativesCarousel.addEventListener('wheel', (e) => {
             if (!isCreativesInitialized) return;
 
-            console.log('User wheel scroll detected on KR Creatives');
             isCreativesUserScrolling = true;
             pauseCreativesAutoScroll();
 
             clearTimeout(creativesScrollTimeout);
             creativesScrollTimeout = setTimeout(() => {
-                console.log('2 seconds passed - resuming KR Creatives auto-scroll');
                 isCreativesUserScrolling = false;
                 resumeCreativesAutoScroll();
             }, 2000);
@@ -2137,7 +2305,6 @@
         creativesCarousel.addEventListener('touchstart', () => {
             if (!isCreativesInitialized) return;
 
-            console.log('User touch detected on KR Creatives');
             isCreativesUserScrolling = true;
             pauseCreativesAutoScroll();
         }, { passive: true });
@@ -2147,7 +2314,6 @@
 
             clearTimeout(creativesScrollTimeout);
             creativesScrollTimeout = setTimeout(() => {
-                console.log('2 seconds passed after touch - resuming KR Creatives auto-scroll');
                 isCreativesUserScrolling = false;
                 resumeCreativesAutoScroll();
             }, 2000);
@@ -2155,7 +2321,153 @@
 
         // Load creatives when page loads
         loadKRCreatives();
+
+        // ==================== DYNAMIC STATS COUNTER ====================
+        const creativesCountEl = document.getElementById('active-creatives-count');
+        const collaborationsCountEl = document.getElementById('collaborations-count');
+        const practicesCountEl = document.getElementById('practices-count');
+        let statsAnimated = false;
+
+        // Animate number counting
+        function animateCounter(element, target, duration = 1500) {
+            const start = 1;
+            const increment = (target - start) / (duration / 16); // ~60fps
+            let current = start;
+
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    element.textContent = target + '+';
+                    clearInterval(timer);
+                } else {
+                    element.textContent = Math.floor(current) + '+';
+                }
+            }, 16);
+        }
+
+        // Load stats from Firebase
+        async function loadNetworkStats() {
+            try {
+                // Fetch all users
+                const usersSnapshot = await getDocs(collection(db, 'users'));
+                const userCount = usersSnapshot.size;
+
+                // Count mutual connections (collaborations)
+                let collaborationCount = 0;
+                const userConnections = new Map();
+
+                // Count unique creative practices
+                const uniquePractices = new Set();
+
+                // Build connection map and collect practices
+                usersSnapshot.forEach(userDoc => {
+                    const userData = userDoc.data();
+                    const userId = userDoc.id;
+                    
+                    // Collect connections
+                    if (userData.connections && Array.isArray(userData.connections)) {
+                        userConnections.set(userId, userData.connections);
+                    }
+
+                    // Collect practices (assuming it's stored in a 'practice' or 'practices' field)
+                    if (userData.practice && userData.practice.trim() !== '') {
+                        uniquePractices.add(userData.practice.toLowerCase().trim());
+                    }
+                    // Also check if practices is an array
+                    if (userData.practices && Array.isArray(userData.practices)) {
+                        userData.practices.forEach(practice => {
+                            if (practice && practice.trim() !== '') {
+                                uniquePractices.add(practice.toLowerCase().trim());
+                            }
+                        });
+                    }
+                });
+
+                // Count mutual connections (only count each pair once)
+                const counted = new Set();
+                userConnections.forEach((connections, userId) => {
+                    connections.forEach(connectedUserId => {
+                        const otherUserConnections = userConnections.get(connectedUserId) || [];
+                        // Check if it's mutual
+                        if (otherUserConnections.includes(userId)) {
+                            // Create a unique key for this pair (sorted to avoid duplicates)
+                            const pairKey = [userId, connectedUserId].sort().join('|');
+                            if (!counted.has(pairKey)) {
+                                counted.add(pairKey);
+                                collaborationCount++;
+                            }
+                        }
+                    });
+                });
+
+                const practicesCount = uniquePractices.size;
+
+                console.log(`Loaded stats: ${userCount} users, ${collaborationCount} collaborations, ${practicesCount} practices`);
+
+                // Update data-target attributes
+                creativesCountEl.setAttribute('data-target', userCount);
+                collaborationsCountEl.setAttribute('data-target', collaborationCount);
+                practicesCountEl.setAttribute('data-target', practicesCount);
+
+                // Trigger animation if already in view
+                checkStatsInView();
+
+            } catch (error) {
+                console.error('Error loading network stats:', error);
+                // Fallback to default values (already set in HTML)
+                checkStatsInView();
+            }
+        }
+
+        // Check if stats section is in viewport and trigger animation
+        function checkStatsInView() {
+            if (statsAnimated) return;
+
+            const statsSection = document.querySelector('.stats-section');
+            if (!statsSection) return;
+
+            const rect = statsSection.getBoundingClientRect();
+            const isInView = rect.top < window.innerHeight && rect.bottom >= 0;
+
+            if (isInView) {
+                statsAnimated = true;
+                const creativesTarget = parseInt(creativesCountEl.getAttribute('data-target'));
+                const collaborationsTarget = parseInt(collaborationsCountEl.getAttribute('data-target'));
+                const practicesTarget = parseInt(practicesCountEl.getAttribute('data-target'));
+
+                animateCounter(creativesCountEl, creativesTarget);
+                animateCounter(collaborationsCountEl, collaborationsTarget);
+                animateCounter(practicesCountEl, practicesTarget);
+            }
+        }
+
+        // Load stats when page loads
+        loadNetworkStats();
+
+        // Listen for scroll to trigger animation
+        window.addEventListener('scroll', checkStatsInView, { passive: true });
+        // Also check on load in case stats are already in view
+        setTimeout(checkStatsInView, 500);
+
+        // Handle iframe overlay click to close and show fullscreen button
+        const iframeOverlay = document.getElementById('iframe-overlay');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        
+        if (iframeOverlay && fullscreenBtn) {
+            iframeOverlay.addEventListener('click', function(e) {
+                // Hide the overlay
+                iframeOverlay.style.display = 'none';
+                // Show the fullscreen button
+                fullscreenBtn.style.display = 'block';
+            });
+        }
     </script>
+    
+    <!-- Intro Globe Animation -->
+    <script type="module" src="static/js/globe/intro-globe.js"></script>
+    
+    <!-- Globe Visualization -->
+    <script type="module" src="static/js/globe/welcome-globe.js"></script>
 </body>
 
 </html>

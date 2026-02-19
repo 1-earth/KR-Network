@@ -382,7 +382,62 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<button type="button" class="practice-pill ${isSelected ? 'selected' : ''}" data-practice="${p}">${p}</button>`;
         }).join('');
 
+        // Format createdAt date
+        let createdAtFormatted = 'N/A';
+        if (user.createdAt) {
+            try {
+                let dateObj;
+                if (typeof user.createdAt === 'object' && typeof user.createdAt.toDate === 'function') {
+                    dateObj = user.createdAt.toDate();
+                } else if (typeof user.createdAt === 'object' && 'seconds' in user.createdAt) {
+                    dateObj = new Date(user.createdAt.seconds * 1000);
+                } else {
+                    dateObj = new Date(user.createdAt);
+                }
+                createdAtFormatted = dateObj.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                console.error('Error formatting date:', e);
+            }
+        }
+
         return `
+            <!-- Read-only User Information Card -->
+            <div class="user-info-card">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 16px; font-weight: 600; border-bottom: 2px solid #0000ff; padding-bottom: 8px;">User Information</h3>
+                <div class="user-info-grid">
+                    <div class="user-info-item">
+                        <span class="user-info-label">User ID</span>
+                        <span class="user-info-value">${esc(user.email || 'N/A')}</span>
+                    </div>
+                    <div class="user-info-item">
+                        <span class="user-info-label">Email Address</span>
+                        <span class="user-info-value">${esc(user.email || 'N/A')}</span>
+                    </div>
+                    <div class="user-info-item">
+                        <span class="user-info-label">Account Created</span>
+                        <span class="user-info-value">${createdAtFormatted}</span>
+                    </div>
+                    <div class="user-info-item">
+                        <span class="user-info-label">Connections</span>
+                        <span class="user-info-value">${userConnections.length} connection${userConnections.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div class="user-info-item">
+                        <span class="user-info-label">Practices</span>
+                        <span class="user-info-value">${userPractices.length} practice${userPractices.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div class="user-info-item">
+                        <span class="user-info-label">Blocks</span>
+                        <span class="user-info-value">${(user.blocks || []).length} block${(user.blocks || []).length !== 1 ? 's' : ''}</span>
+                    </div>
+                </div>
+            </div>
+
             <form id="admin-edit-user-form">
                 <input type="hidden" id="edit-user-id" value="${user.email || ''}">
                 <div class="form-field">
@@ -435,8 +490,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <hr style="margin: 20px 0;">
-                <div class="form-actions">
-                    <button type="submit" class=" view-community-btn primary-btn">Update User</button>
+                <div class="form-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                    <button type="submit" class="view-community-btn primary-btn">Update User</button>
+                    <button type="button" id="admin-modal-delete-user-btn" class="admin-modal-delete-btn" data-email="${user.email || ''}">Delete User</button>
                 </div>
             </form>
         `;
@@ -488,6 +544,28 @@ document.addEventListener('DOMContentLoaded', () => {
             editingBlockIndex = null;
             openAdminBlockModal();
         });
+
+        // Add delete button handler
+        const modalDeleteBtn = document.getElementById('admin-modal-delete-user-btn');
+        if (modalDeleteBtn) {
+            modalDeleteBtn.addEventListener('click', async () => {
+                const email = modalDeleteBtn.dataset.email;
+                if (confirm(`Are you sure you want to delete user ${email}?\n\nThis action cannot be undone and will delete all their data including posts, connections, and blocks.`)) {
+                    modalDeleteBtn.disabled = true;
+                    modalDeleteBtn.textContent = 'Deleting...';
+                    try {
+                        await deleteUserAndData(email);
+                        alert('User deleted successfully!');
+                        modal.style.display = 'none';
+                        await loadUsers();
+                    } catch (err) {
+                        alert(`Error deleting user: ${err.message}`);
+                        modalDeleteBtn.disabled = false;
+                        modalDeleteBtn.textContent = 'Delete User';
+                    }
+                }
+            });
+        }
 
         // Initialize avatar upload functionality
         initializeAvatarUpload();

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>KR NETWORK</title>
 
     <!-- Meta Tags for social media sharing -->
@@ -17,7 +17,17 @@
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
 
-    <link rel="stylesheet" href="styles.css" />
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170/build/three.module.js",
+        "jsm/": "https://cdn.jsdelivr.net/npm/three@0.170/examples/jsm/"
+      }
+    }
+    </script>
+
+    <link rel="stylesheet" href="static/css/styles.css" />
     <!-- REMOVED FIREBASE COMPAT (GOT MODULAR ONE ANYWAYS) -->
     <!-- <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
@@ -697,6 +707,8 @@
       <!-- <a href="profile.html" style="text-decoration: none; color: #ffffff">JOIN</a> -->
     </nav>
 
+    <p class="beta-text">[beta v1.7] <span class="location-text">LONDON</span></p>
+
     <!-- Search & Filter UI -->
     <div id="network-searchbar-container">
       <div class="searchbar-row">
@@ -730,8 +742,12 @@
 
     <div id="vision-circle-overlay" class="hidden"></div>
 
+    <div class="mobile-top-gradient-bar"></div>
+
     <!-- Fixed Top Middle Logo -->
-    <img src="static/img/WHITE KRLOGO.png" alt="KR Logo" id="fixed-top-logo" />
+    <a href="welcome.html" id="fixed-top-logo-link" style="display: inline-block; line-height: 0;">
+      <img src="static/img/WHITE KRLOGO.png" alt="KR Logo" id="fixed-top-logo" />
+    </a>
 
     <a
       href="profile.html"
@@ -750,11 +766,23 @@
       Clear Filters
     </button>
 
+    <!-- Network Loading Screen with Globe Animation -->
     <div id="network-loading-screen">
-      <canvas id="loading-animation-canvas"></canvas>
-      <img src="static/img/KRSPIN-optimize.gif" alt="Loading..." />
-      <p>Loading network.</p>
+      <canvas id="network-intro-globe-canvas"></canvas>
+      <p class="loading-text"></p>
     </div>
+    
+    <script>
+      // Set initial loading text immediately based on URL parameter
+      (function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isLoadingProfile = urlParams.has('link');
+        const loadingText = document.querySelector('#network-loading-screen .loading-text');
+        if (loadingText) {
+          loadingText.textContent = isLoadingProfile ? 'Loading profile.' : 'Loading network.';
+        }
+      })();
+    </script>
 
     <svg></svg>
 
@@ -826,7 +854,7 @@
       </div>
     </div>
 
-    <script type="module" src="network-firebase-setup.js"></script>
+    <script type="module" src="static/js/firebase/network-firebase-setup.js"></script>
     
     <!-- Auth redirect check -->
     <script type="module">
@@ -882,10 +910,10 @@
       }
     </script>
     
-    <script type="module" src="network-app.js"></script>
-    <script src="loading-canvas-animation.js"></script>
-    <script src="mobile-nav.js"></script>
-    <script type="module" src="discover-feed.js"></script>
+    <script type="module" src="static/js/pages/network-app.js"></script>
+    <script type="module" src="static/js/globe/network-intro-globe.js"></script>
+    <script src="static/js/components/mobile-nav.js"></script>
+    <script type="module" src="static/js/pages/discover-feed.js"></script>
     <script type="module">
       import { getApp, getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js';
       import { getAnalytics, logEvent } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-analytics.js';
@@ -1512,6 +1540,14 @@
           }
         }
       };
+
+      // Show beta text after 3 seconds
+      setTimeout(function() {
+        const betaText = document.querySelector('.beta-text');
+        if (betaText) {
+          betaText.classList.add('show');
+        }
+      }, 3000);
     })();
   </script>
 </html>

@@ -1,6 +1,18 @@
 // network-app.js
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
+// Detect if page is loaded in an iframe
+const isInIframe = (function() {
+  try {
+    return window.self !== window.top;
+  } catch (e) {
+    return true; // If error accessing window.top, we're definitely in an iframe
+  }
+})();
+
+// Log iframe status for debugging
+console.log('[KR Network] Running in iframe:', isInIframe);
+
 let allUsers = [];
 let nodes = [];
 let links = [];
@@ -72,9 +84,7 @@ function updateLocateButtonVisibility() {
 }
 
 const loadingScreen = document.getElementById('network-loading-screen'); // Get reference to loading screen
-const loadingScreenGif = loadingScreen ? loadingScreen.querySelector('img') : null;
-const loadingScreenText = loadingScreen ? loadingScreen.querySelector('p') : null;
-const loadingCanvas = document.getElementById('loading-animation-canvas'); // Get reference to the canvas
+const loadingScreenText = loadingScreen ? loadingScreen.querySelector('.loading-text') : null;
 
 // Define this at a higher scope if it's not already, or pass as needed
 let scrollableModalContentElement = null;
@@ -94,8 +104,6 @@ let loadingDotsInterval = null;
 // Decide base loading text based on presence of ?link= query
 const initialLoadingContextIsProfile = new URLSearchParams(window.location.search).has('link');
 const baseLoadingText = initialLoadingContextIsProfile ? 'Loading profile' : 'Loading network';
-
-// --- Vision Mode ---
 let isVisionModeActive = false;
 const visionCircle = document.getElementById('vision-circle-overlay');
 const visionBtn = document.getElementById('vision-mode-btn');
@@ -107,41 +115,6 @@ let savedTransformBeforeVision = null; // Stores the zoom/pan before entering vi
 
 // --- Practice Links (dynamic per selected practice) ---
 let practiceLinksLayer = null; // SVG <g> layer for practice links (behind normal links)
-
-// --- START: DOMContentLoaded listener for staged loader ---
-document.addEventListener('DOMContentLoaded', () => {
-  if (!loadingScreen || loadingScreen.classList.contains('hidden')) return;
-
-  // Step 1: show GIF (scale-in) immediately
-  if (loadingScreenGif) loadingScreenGif.classList.add('visible');
-
-  // Step 2: after short delay show text + canvas and start dots / animation
-  setTimeout(() => {
-    if (loadingScreenText) {
-      loadingScreenText.classList.add('visible');
-      // Ensure the initial text reflects context before dots start animating
-      loadingScreenText.textContent = `${baseLoadingText}.`;
-    }
-
-    if (loadingCanvas) {
-      loadingCanvas.classList.add('visible');
-      if (window.startLoadingCanvasAnimation) {
-        window.startLoadingCanvasAnimation('loading-animation-canvas');
-      }
-    }
-
-    // Start cycling dots
-    if (loadingScreenText) {
-      let dotCount = 0;
-      loadingDotsInterval = setInterval(() => {
-        dotCount = (dotCount + 1) % 3; // 0,1,2
-        const dots = '.'.repeat(dotCount + 1);
-        loadingScreenText.textContent = `${baseLoadingText}${dots}`;
-      }, 400);
-    }
-  }, 100); // delay before showing text & canvas
-});
-// --- END: DOMContentLoaded listener ---
 
 function handleModalScroll() {
   if (!originalViewCommunityButtonDivElement || !scrollableModalContentElement || !popupContainerElement || !stickyOverlayButtonElement) {
@@ -162,45 +135,18 @@ function handleModalScroll() {
 
 // Initialize the network visualization
 async function initNetwork() {
-  if (loadingScreen) {
-    loadingScreen.classList.remove('hidden');
-    // Ensure GIF visible (will scale-in automatically)
-    if (loadingScreenGif) loadingScreenGif.classList.add('visible');
-    // Text & canvas visibility handled by DOMContentLoaded listener
-  }
-
   // Fetch all users from Firestore
   allUsers = await window.networkFirebaseUtils.fetchAllUsers();
   
-  if (loadingScreen) {
-    // Begin fade-out sequence
-    if (loadingDotsInterval) {
-      clearInterval(loadingDotsInterval);
-      loadingDotsInterval = null;
-    }
-
-    // Fade out canvas first
-    if (loadingCanvas) loadingCanvas.classList.remove('visible');
-
-    // Fade out text slightly later
-    setTimeout(() => {
-      if (loadingScreenText) loadingScreenText.classList.remove('visible');
-    }, 100);
-
-    // Stop canvas animation and hide overlay after fades complete
-    setTimeout(() => {
-      if (window.stopLoadingCanvasAnimation) {
-        window.stopLoadingCanvasAnimation();
-      }
-
-      loadingScreen.classList.add('hidden');
-      if (loadingScreenGif) loadingScreenGif.classList.remove('visible');
-      // Trigger staggered UI fade-in once per page load
-      if (!window.__uiRevealed) {
-        window.__uiRevealed = true;
-        revealUIStaggered();
-      }
-    }, 400); // overlay fade-out starts a bit earlier now
+  // Hide the loading screen with globe animation
+  if (window.hideNetworkLoadingScreen) {
+    window.hideNetworkLoadingScreen();
+  }
+  
+  // Trigger staggered UI fade-in once per page load
+  if (!window.__uiRevealed) {
+    window.__uiRevealed = true;
+    revealUIStaggered();
   }
 
   // Filter: only include users with a non-empty biography
@@ -301,8 +247,168 @@ async function initNetwork() {
   });
   const svg = d3.select("svg")
     .attr("width", "100%")
-    .attr("height", "100%")
-    .call(zoomBehavior)
+    .attr("height", "100%");
+
+  // DEBUG: Log iframe status right when SVG is created
+  console.log('[DEBUG] isInIframe:', isInIframe);
+  console.log('[DEBUG] SVG element:', svg.node());
+
+  // --- Iframe Background Click Handler (BEFORE zoom behavior) ---
+  if (isInIframe) {
+    console.log('[DEBUG] Setting up iframe click handlers...');
+    
+    // Change cursor to pointer when in iframe
+    svg.style("cursor", "pointer");
+    console.log('[DEBUG] Cursor set to pointer');
+    
+    // Use native addEventListener with capture to intercept before D3 zoom
+    const svgNode = svg.node();
+    
+    // Use a simpler approach: track if user is dragging, then use click event
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    const DRAG_THRESHOLD = 10; // px movement to be considered a drag
+    
+    // Helper function to check if element is a node or UI element
+    function isNodeOrUIElement(target) {
+      if (!target) return false;
+      // Check if it's a node (has .node class or is child of .node)
+      if (target.classList && target.classList.contains('node')) return true;
+      if (target.closest && target.closest('.node')) return true;
+      // Check if it's a circle, image, or text that's part of a node
+      if (target.tagName === 'circle' || target.tagName === 'image' || target.tagName === 'text') return true;
+      // Check if it's a link
+      if (target.tagName === 'line') return true;
+      return false;
+    }
+    
+    // Track dragging to distinguish from clicks
+    svgNode.addEventListener('mousedown', function(event) {
+      console.log('[DEBUG] ✓ MOUSEDOWN - resetting drag tracking');
+      isDragging = false;
+      dragStartX = event.clientX;
+      dragStartY = event.clientY;
+    }, true);
+    
+    svgNode.addEventListener('mousemove', function(event) {
+      if (!isDragging) {
+        const deltaX = Math.abs(event.clientX - dragStartX);
+        const deltaY = Math.abs(event.clientY - dragStartY);
+        if (deltaX > DRAG_THRESHOLD || deltaY > DRAG_THRESHOLD) {
+          isDragging = true;
+          console.log('[DEBUG] User is dragging - will not trigger redirect');
+        }
+      }
+    }, true);
+    
+    // Use click event (fires after mouseup and only if no drag)
+    svgNode.addEventListener('click', function(event) {
+      console.log('[DEBUG] ✓✓✓ CLICK EVENT FIRED!');
+      console.log('[DEBUG] - isDragging:', isDragging);
+      console.log('[DEBUG] - target:', event.target.tagName, event.target.className);
+      
+      const clickedOnNode = isNodeOrUIElement(event.target);
+      console.log('[DEBUG] - clickedOnNode:', clickedOnNode);
+      
+      // Only redirect if not dragging and not clicking on a node
+      if (!isDragging && !clickedOnNode) {
+        console.log('[Iframe] ✓✓✓ Background clicked - opening index.html in new tab!');
+        try {
+          const newWindow = window.open('index.html', '_blank');
+          if (newWindow) {
+            console.log('[Iframe] ✓ New window opened successfully');
+            newWindow.addEventListener('load', function() {
+              try {
+                newWindow.sessionStorage.setItem('kr_from_welcome', '1');
+                console.log('[Iframe] ✓ SessionStorage set in new window');
+              } catch (e) {
+                console.warn('Could not set sessionStorage in new window:', e);
+              }
+            });
+          } else {
+            console.warn('[Iframe] ✗ New window was blocked by popup blocker');
+          }
+        } catch (e) {
+          console.warn('[Iframe] Failed to open new window:', e);
+        }
+      } else {
+        console.log('[Iframe] ✗ Not opening - isDragging:', isDragging, 'clickedOnNode:', clickedOnNode);
+      }
+      
+      // Reset drag tracking
+      isDragging = false;
+    }, true);
+    
+    // Touch events for mobile
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let touchDragging = false;
+    
+    svgNode.addEventListener('touchstart', function(event) {
+      console.log('[DEBUG] ✓ TOUCHSTART');
+      if (event.touches && event.touches.length === 1) {
+        const touch = event.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        touchStartTime = Date.now();
+        touchDragging = false;
+      }
+    }, true);
+    
+    svgNode.addEventListener('touchmove', function(event) {
+      if (event.touches && event.touches.length === 1 && !touchDragging) {
+        const touch = event.touches[0];
+        const deltaX = Math.abs(touch.clientX - touchStartX);
+        const deltaY = Math.abs(touch.clientY - touchStartY);
+        if (deltaX > DRAG_THRESHOLD || deltaY > DRAG_THRESHOLD) {
+          touchDragging = true;
+          console.log('[DEBUG] Touch dragging detected');
+        }
+      }
+    }, true);
+    
+    svgNode.addEventListener('touchend', function(event) {
+      console.log('[DEBUG] ✓ TOUCHEND');
+      if (event.changedTouches && event.changedTouches.length === 1) {
+        const touch = event.changedTouches[0];
+        const deltaTime = Date.now() - touchStartTime;
+        const touchedOnNode = isNodeOrUIElement(event.target);
+        
+        console.log('[DEBUG] - touchDragging:', touchDragging, 'touchedOnNode:', touchedOnNode, 'time:', deltaTime);
+        
+        // Only trigger if not dragging, not on a node, and quick tap
+        if (!touchDragging && !touchedOnNode && deltaTime < 500) {
+          console.log('[Iframe] ✓✓✓ Background tapped - opening index.html in new tab!');
+          try {
+            const newWindow = window.open('index.html', '_blank');
+            if (newWindow) {
+              console.log('[Iframe] ✓ New window opened successfully');
+              newWindow.addEventListener('load', function() {
+                try {
+                  newWindow.sessionStorage.setItem('kr_from_welcome', '1');
+                  console.log('[Iframe] ✓ SessionStorage set in new window');
+                } catch (e) {
+                  console.warn('Could not set sessionStorage in new window:', e);
+                }
+              });
+            } else {
+              console.warn('[Iframe] ✗ New window was blocked');
+            }
+          } catch (e) {
+            console.warn('[Iframe] Failed to open new window:', e);
+          }
+        }
+        
+        touchDragging = false;
+      }
+    }, true);
+  }
+  // --- End Iframe Background Click Handler ---
+  
+  // Now apply zoom behavior AFTER our handlers are set up
+  svg.call(zoomBehavior)
     .style("background-color", "#1a1a1a");
 
   // --- Mobile Double-Tap-Hold Zoom (Google Maps style) ---
@@ -651,8 +757,10 @@ async function initNetwork() {
     zoomToNode(d); // Call the new specific zoom function
     
     // Show clear filters button
+    const logoLink = document.getElementById('fixed-top-logo-link');
     clearFiltersBtn.classList.add('active');
     clearFiltersBtn.style.display = 'block';
+    if (logoLink) logoLink.style.pointerEvents = 'none';
     // Ripple/Glow effect
     d3.selectAll('.node').classed('node-glow', false);
     d3.select(this).classed('node-glow', true);
@@ -1402,8 +1510,10 @@ const closePopup = () => {
   
   // Show clear filters button again if filters are still active OR if a node was selected before popup (now handled by activeClickedNodeId)
   if (searchTerm || (selectedPractices && selectedPractices.length > 0) || activeClickedNodeId) {
+    const logoLink = document.getElementById('fixed-top-logo-link');
     clearFiltersBtn.classList.add('active');
     clearFiltersBtn.style.display = 'block';
+    if (logoLink) logoLink.style.pointerEvents = 'none';
   }
 
   // Show welcome overlay after profile modal closes if appropriate
@@ -1954,12 +2064,18 @@ function renderFilterChips() {
 }
 
 function updateClearFiltersBtn() {
+  const logoLink = document.getElementById('fixed-top-logo-link');
+  
   if (searchTerm || selectedPractices.length > 0) {
     clearFiltersBtn.classList.add('active');
     clearFiltersBtn.style.display = 'block';
+    // Disable logo link when clear button is active
+    if (logoLink) logoLink.style.pointerEvents = 'none';
   } else {
     clearFiltersBtn.classList.remove('active');
     clearFiltersBtn.style.display = 'none';
+    // Re-enable logo link when clear button is hidden
+    if (logoLink) logoLink.style.pointerEvents = 'auto';
   }
 }
 
@@ -2183,8 +2299,10 @@ window.addEventListener('load', async () => {
         }, 150); 
         
         // Ensure the "Clear Filters" button reflects that a node is selected
+        const logoLink = document.getElementById('fixed-top-logo-link');
         clearFiltersBtn.classList.add('active');
         clearFiltersBtn.style.display = 'block'; // Or 'none' if modal is open, as per showProfileModal
+        if (logoLink) logoLink.style.pointerEvents = 'none';
 
       } else {
         console.warn(`Deep link: Node data not found for user email: ${targetUser.email}`);
@@ -2460,8 +2578,10 @@ if (locateMeBtn) {
         zoomToNode(targetNodeDatum);
         // Ensure Clear Filters button is visible so user can deselect links
         if (typeof clearFiltersBtn !== 'undefined' && clearFiltersBtn) {
+          const logoLink = document.getElementById('fixed-top-logo-link');
           clearFiltersBtn.classList.add('active');
           clearFiltersBtn.style.display = 'block';
+          if (logoLink) logoLink.style.pointerEvents = 'none';
         }
         playNodeClickSound();
         triggerHaptic();

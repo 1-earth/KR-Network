@@ -521,7 +521,8 @@ body.network-page-body {
 
 
 
-svg {
+/* Scope SVG styles to only the network page to avoid breaking SVG icons on other pages */
+.network-page-body svg {
   width: 100%;
   /* height: calc(100vh - 158px); */
   /* Adjusted for new fixed header height */
@@ -533,7 +534,12 @@ svg {
   /* Good practice for SVG */
   box-sizing: border-box;
   /* Include padding/border in height if any added later */
-  
+  position: absolute;
+  /* Position absolutely so it doesn't create space before network loads */
+  top: 0;
+  left: 0;
+  height: 100%;
+  /* Fill the container */
 }
 
 #popup-container {
@@ -1685,10 +1691,12 @@ svg {
   border: 2px solid #fff;
   border-radius: 8px;
   padding: 4px 18px;
+  z-index: 2002;
+  /* Above logo (2001) */
   font-size: 1.1em;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
-  z-index: 101;
+  /* z-index: 101; */
 }
 
 @media (max-width: 768px) {
@@ -1874,15 +1882,12 @@ svg {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 8);
-  /* Match body background */
+  background: rgb(26, 26, 26);
   display: flex;
   flex-direction: column;
-  /* Stack image and text */
   justify-content: center;
   align-items: center;
   z-index: 2000;
-  /* Ensure it's on top of everything */
   opacity: 1;
   transition: opacity 0.5s ease-out;
 }
@@ -1892,47 +1897,47 @@ svg {
   pointer-events: none;
 }
 
-#network-loading-screen img {
-  width: 64px;
-  /* Adjust size as needed */
-  height: 64px;
-  margin-bottom: 15px;
-  position: relative;
-  /* Added for z-index stacking */
-  z-index: 2;
-  /* Ensure GIF is on top of canvas */
-  opacity: 0;
-  /* Start transparent */
-  transform: scale(0.8);
-  /* Slightly smaller at start */
-  transition: opacity 0.5s ease-in-out, transform 0.4s ease-out;
-  /* Smooth fade + scale */
+#network-intro-globe-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-#network-loading-screen img.visible {
-  opacity: 1;
-  /* Make visible */
-  transform: scale(1);
-  /* Scale up to full size */
-}
-
-#network-loading-screen p {
+#network-loading-screen .loading-text {
   color: #fff;
   font-size: 1.2em;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   position: relative;
-  /* Added for z-index stacking */
   z-index: 2;
-  /* Ensure text is on top of canvas */
-  opacity: 0;
-  /* Start transparent */
-  transition: opacity 0.5s ease-in-out 0.1s;
-  /* Smooth fade-in, 0.1s delay */
+  opacity: 1;
+  text-align: center;
+  pointer-events: none;
+  padding-top: 80px;
 }
 
-#network-loading-screen p.visible {
+.beta-text {
+  position: fixed;
+  top: 30px;
+  left: 10px;
+  /* transform: translateX(-50%); */
+  font-size: 12px;
+  color: #888888;
+  z-index: 2001;
+  opacity: 0;
+  transition: opacity 0.5s ease-in;
+}
+
+@media (max-width: 768px) {
+  .beta-text {
+    display: none;
+  }
+}
+
+.beta-text.show {
   opacity: 1;
-  /* Make visible */
 }
 
 /* Fixed Top Middle Logo Styles */
@@ -1944,35 +1949,25 @@ svg {
   transform: translateX(-50%);
   width: 50px;
   height: 50px;
-  z-index: 10;
+  z-index: 2001;
+  /* Above loading screen (2000) */
   object-fit: contain;
-}
-
-/* Added styles for the loading animation canvas */
-#loading-animation-canvas {
-  position: absolute;
-  top: 50%;
-  /* Center vertically */
-
-  left: 50%;
-  /* Center horizontally */
-  width: 300px;
-  /* Fixed width */
-  height: 300px;
-  /* Fixed height */
-  transform: translate(-50%, -50%);
-  /* Adjust for exact centering */
-  z-index: 1;
-  /* Ensure canvas is behind other loading content */
   opacity: 0;
-  /* Start transparent */
-  transition: opacity 1.0s ease-in-out 0.2s;
-  /* Slower fade-in, 0.1s delay after text */
+  /* Start invisible for animation */
+  animation: fadeInDown 1s ease forwards;
+  animation-delay: 0.1s;
+  /* Slight delay for better effect */
 }
 
-#loading-animation-canvas.visible {
-  opacity: 1;
-  /* Make visible */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 /* Notification Bell Button */
@@ -4600,14 +4595,27 @@ html.profile-focus-mode #fixed-top-logo {
   color: #ffffff;
 }
 
+@media (max-width: 768px) {
+  .mobile-top-gradient-bar {
+    position: fixed;
+    width: 100%;
+    height: 30px;
+    background: linear-gradient(to bottom, rgb(0, 0, 0), rgba(255, 255, 255, 0));
+    z-index: 1000;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+  }
+}
+
 .mobile-nav-credit {
   margin-left: 15px;
   font-size: 12px;
-  color: #bababa;
+  color: #5f5f5f;
 }
 
 .mobile-nav-credit a {
-  color: #bababa !important;
+  color: #8b8b8b !important;
   font-size: 12px !important;
   display: ruby !important;
   padding: 0px !important;

@@ -558,9 +558,29 @@ let loadingTasks = 0;
 const loadingHelpBtn = document.getElementById('loading-help');
 let loadingHelpTimer = null;
 
+// Initialize: Ensure loading screen is hidden on page load if something goes wrong
+if (loadingScreen) {
+  // Safety timeout: force hide loading screen after 10 seconds if still visible
+  setTimeout(() => {
+    if (!loadingScreen.classList.contains('hidden') && loadingTasks === 0) {
+      console.warn('Loading screen force-hidden after timeout');
+      loadingScreen.classList.add('hidden');
+    }
+  }, 10000);
+}
+
+// Add reload button functionality
+if (loadingHelpBtn) {
+  loadingHelpBtn.addEventListener('click', () => {
+    window.location.reload();
+  });
+}
+
 window.startLoading = function () {
   loadingTasks++;
-  loadingScreen.classList.remove('hidden');
+  if (loadingScreen) {
+    loadingScreen.classList.remove('hidden');
+  }
   // Hide helper immediately and (re)start delayed reveal timer
   if (loadingHelpBtn) loadingHelpBtn.style.display = 'none';
   if (loadingHelpTimer) {
@@ -579,7 +599,9 @@ window.stopLoading = function () {
   if (loadingTasks <= 0) {
     loadingTasks = 0;
     setTimeout(() => {
-      loadingScreen.classList.add('hidden');
+      if (loadingScreen) {
+        loadingScreen.classList.add('hidden');
+      }
     }, 500); // Match the CSS transition duration
   }
   // Always clear and hide helper when stopping a loading task
@@ -1624,6 +1646,7 @@ function closeBlockModal() {
 
 document.getElementById("add-block").addEventListener("click", () => openBlockModal(false));
 document.getElementById("cancel-block").addEventListener("click", closeBlockModal);
+document.getElementById("modal-close").addEventListener("click", closeBlockModal);
 
 function isValidUrl(url) {
   if (!url) return true; // Allow empty (optional) URLs
@@ -2486,22 +2509,116 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- COLLAPSIBLE SECTIONS LOGIC ---
 
+// Track pending collapse timers and user interaction
+const collapseTimers = {
+  profile: null,
+  connections: null
+};
+
+const userInteracting = {
+  profile: false,
+  connections: false
+};
+
+function setupSectionInputMonitoring(section, sectionKey) {
+  if (!section) return;
+  
+  const contentArea = section.querySelector('.collapsible-content');
+  if (!contentArea) return;
+  
+  // Get all interactive elements in the section
+  const interactiveElements = contentArea.querySelectorAll(
+    'input, textarea, button:not(.collapsible-header):not(.help-icon), select, .practice-pill'
+  );
+  
+  // Track focus/click on any input in this section
+  const handleInteraction = () => {
+    userInteracting[sectionKey] = true;
+    
+    // Cancel any pending collapse for this section
+    if (collapseTimers[sectionKey]) {
+      clearTimeout(collapseTimers[sectionKey]);
+      collapseTimers[sectionKey] = null;
+    }
+  };
+  
+  // Track when user stops interacting (blur on all inputs)
+  const handleBlur = () => {
+    // Small delay to check if focus moved to another input in the same section
+    setTimeout(() => {
+      const activeElement = document.activeElement;
+      const isStillInSection = contentArea.contains(activeElement);
+      
+      if (!isStillInSection) {
+        userInteracting[sectionKey] = false;
+      }
+    }, 100);
+  };
+  
+  interactiveElements.forEach(element => {
+    element.addEventListener('focus', handleInteraction);
+    element.addEventListener('click', handleInteraction);
+    element.addEventListener('blur', handleBlur);
+  });
+}
+
+function scheduleCollapse(section, sectionKey, delay = 2000) {
+  if (!section) return;
+  
+  // Clear any existing timer
+  if (collapseTimers[sectionKey]) {
+    clearTimeout(collapseTimers[sectionKey]);
+  }
+  
+  // Only schedule collapse if user is not currently interacting
+  if (userInteracting[sectionKey]) {
+    return; // Stay open indefinitely while user is interacting
+  }
+  
+  // Schedule the collapse
+  collapseTimers[sectionKey] = setTimeout(() => {
+    // Double-check user isn't interacting before collapsing
+    if (!userInteracting[sectionKey] && section.dataset.manualToggle !== 'true') {
+      section.classList.add('collapsed');
+    }
+    collapseTimers[sectionKey] = null;
+  }, delay);
+}
+
 function initializeCollapsibleSections(userData = {}) {
   const profileSection = document.getElementById('profile-collapsible-section');
   const connectionsSection = document.getElementById('connections-collapsible-section');
 
   if (!profileSection || !connectionsSection) return;
 
+  // Setup input monitoring for both sections (only once)
+  if (!profileSection.dataset.monitoringSetup) {
+    setupSectionInputMonitoring(profileSection, 'profile');
+    profileSection.dataset.monitoringSetup = 'true';
+  }
+  
+  if (!connectionsSection.dataset.monitoringSetup) {
+    setupSectionInputMonitoring(connectionsSection, 'connections');
+    connectionsSection.dataset.monitoringSetup = 'true';
+  }
+
   // --- Logic for Profile Section ---
   const hasTitle = !!userData.title;
   const hasBio = !!userData.bio;
   const hasSocial = !!userData.instagram || !!userData.youtube || !!userData.tiktok;
   const hasPractices = userData.practices && userData.practices.length > 0;
+  const isProfileComplete = hasTitle && hasBio && hasSocial && hasPractices;
 
   if (profileSection.dataset.manualToggle !== 'true') {
-    if (hasTitle && hasBio && hasSocial && hasPractices) {
-      profileSection.classList.add('collapsed');
+    if (isProfileComplete) {
+      // Schedule collapse with 2-second delay
+      scheduleCollapse(profileSection, 'profile', 2000);
     } else {
+      // If incomplete, cancel any pending collapse and open the section
+      if (collapseTimers.profile) {
+        clearTimeout(collapseTimers.profile);
+        collapseTimers.profile = null;
+      }
       profileSection.classList.remove('collapsed');
     }
   }
@@ -2518,10 +2635,17 @@ function initializeCollapsibleSections(userData = {}) {
 
   // --- Logic for Connections Section ---
   const hasConnections = userData.connections && userData.connections.length > 0;
+  
   if (connectionsSection.dataset.manualToggle !== 'true') {
     if (hasConnections) {
-      connectionsSection.classList.add('collapsed');
+      // Schedule collapse with 2-second delay
+      scheduleCollapse(connectionsSection, 'connections', 2000);
     } else {
+      // If no connections, cancel any pending collapse and open the section
+      if (collapseTimers.connections) {
+        clearTimeout(collapseTimers.connections);
+        collapseTimers.connections = null;
+      }
       connectionsSection.classList.remove('collapsed');
     }
   }
@@ -2533,6 +2657,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const section = header.parentElement;
       section.dataset.manualToggle = 'true';
       section.classList.toggle('collapsed');
+      
+      // Cancel any pending auto-collapse when user manually toggles
+      const sectionId = section.id;
+      if (sectionId === 'profile-collapsible-section' && collapseTimers.profile) {
+        clearTimeout(collapseTimers.profile);
+        collapseTimers.profile = null;
+      } else if (sectionId === 'connections-collapsible-section' && collapseTimers.connections) {
+        clearTimeout(collapseTimers.connections);
+        collapseTimers.connections = null;
+      }
     });
   });
 });

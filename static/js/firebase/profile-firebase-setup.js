@@ -131,7 +131,10 @@ onAuthStateChanged(auth, async (user) => {
     unsubscribeFromUserData = null;
   }
 
-  window.startLoading();
+  // Guard against race condition: ensure loading functions exist
+  if (typeof window.startLoading === 'function') {
+    window.startLoading();
+  }
   try {
     if (user) {
       currentUser = user;
@@ -154,7 +157,10 @@ onAuthStateChanged(auth, async (user) => {
         } catch (error) {
           console.error("Failed to create new user with ID:", error);
           signOut(auth);
-          window.stopLoading();
+          // Guard against race condition
+          if (typeof window.stopLoading === 'function') {
+            window.stopLoading();
+          }
           return;
         }
       }
@@ -219,7 +225,10 @@ onAuthStateChanged(auth, async (user) => {
     }
     updateNavbarForAuth(); // Update navbar on auth state change
   } finally {
-    window.stopLoading();
+    // Guard against race condition
+    if (typeof window.stopLoading === 'function') {
+      window.stopLoading();
+    }
   }
 });
 

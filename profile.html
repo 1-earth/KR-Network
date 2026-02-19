@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>User Profile - KR</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="static/css/styles.css">
   <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css" rel="stylesheet" />
   <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
@@ -185,21 +185,46 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.6);
       display: none;
       justify-content: center;
       align-items: center;
+      z-index: 10002;
     }
 
     .modal-content {
-      background: #ffffff;
-      color: #000000;
-      padding: 1rem;
+      background: #eeeeee;
+      color: #171717;
+      padding: 20px;
       border-radius: 8px;
       width: 90%;
-      max-width: 400px;
-      max-height: 95vh;
+      max-width: 500px;
+      max-height: 90vh;
       overflow-y: auto;
+      position: relative;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    }
+
+    @media(min-width: 768px) {
+      .modal-content {
+        top:30px;
+      }
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      font-size: 28px;
+      font-weight: bold;
+      color: #888;
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.2s ease;
+    }
+
+    .modal-close:hover {
+      color: #ff0000;
     }
 
 
@@ -225,21 +250,131 @@
       /* padding: 0.5rem; */
     }
 
-
-    /* Scope generic button styles to avoid affecting the hamburger */
-    button:not(#hamburger-btn) {
-      /* padding: 0.5rem 1rem; */
-      /* background: #0000ff; */
-      /* color: white; */
-      /* border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      font-size: 18px;
-      margin-bottom: 8px; */
-    }
+    /* Generic button styles scoped to avoid affecting the hamburger */
+    /* All button styles are handled by specific classes like .primary-btn */
 
     button.secondary:not(#hamburger-btn) {
       background: #999;
+    }
+
+    /* Custom file upload button styling */
+    #block-img {
+      display: none;
+    }
+
+    .file-upload-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 10px;
+      margin-top: 10px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .file-upload-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .file-upload-btn:active {
+      transform: translateY(0);
+    }
+
+    .file-upload-icon {
+      width: 20px;
+      height: 20px;
+      filter: brightness(0) invert(1);
+    }
+
+    .file-name-display {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: #f0f0f0;
+      border-radius: 6px;
+      font-size: 0.9em;
+      color: #555;
+      display: none;
+    }
+
+    .file-name-display.active {
+      display: block;
+    }
+
+    /* Modal action buttons styling */
+    #save-block {
+      background: #0000ff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 255, 0.3);
+      margin-right: 10px;
+    }
+
+    #save-block:hover {
+      background: #0000cc;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 255, 0.4);
+    }
+
+    #save-block:active {
+      transform: translateY(0);
+    }
+
+    #cancel-block {
+      background: #6e6e6e;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(110, 110, 110, 0.3);
+    }
+
+    #cancel-block:hover {
+      background: #505050;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(110, 110, 110, 0.4);
+    }
+
+    #cancel-block:active {
+      transform: translateY(0);
+    }
+
+    /* Modal button container */
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 20px;
+      margin-bottom: 100px;
+    }
+
+    @media (max-width: 767px) {
+      .modal-actions {
+        flex-direction: column;
+      }
+
+      #save-block,
+      #cancel-block {
+        width: 100%;
+        margin-right: 0;
+      }
     }
 
     .disabled-btn {
@@ -252,15 +387,21 @@
     .edit-btn {
       height: 30px;
       padding: 0 10px;
+      border-radius: 4px;
       border: 1px solid #0000ff;
-      background-color: #fff;
-      color: #0000ff;
+      background-color: #0000ff;
+      color: #ffffff;
       /* max-width: 50px; */
+    }
+
+    .edit-btn:hover {
+      background-color: #ff9100; 
     }
 
     .delete-btn {
       color: #ff4444;
       max-width: 40px;
+      border-radius: 4px;
       background: #fff;
       border: 1px solid #ff4444;
       height: 30px;
@@ -375,6 +516,13 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     }
 
+    @media (max-width: 767px) {
+      .block-type-card {
+        padding: 8px 10px;
+        min-width: 70px;
+      }
+    }
+
     .block-type-card.selected {
       border: 2.5px solid #0000ff;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
@@ -390,6 +538,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+
+    @media (max-width: 767px) {
+      .block-type-icon {
+        width: 80px;
+        height: 50px;
+        margin-bottom: 4px;
+      }
     }
 
     .default-icon {
@@ -426,6 +582,16 @@
       font-weight: bold;
       color: #222;
       text-align: center;
+    }
+
+    @media (max-width: 767px) {
+      .block-type-label {
+        font-size: 0.8em;
+      }
+
+      #block-type-select {
+        gap: 6px !important;
+      }
     }
 
     #block-live-preview {
@@ -909,7 +1075,7 @@
     #practices-buttons {
       display: flex;
       flex-wrap: wrap;
-      row-gap: 1px;
+      row-gap: 7px;
       column-gap: 10px;
       /* margin-bottom: 10px; */
 
@@ -1292,13 +1458,14 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(0, 0, 0, 0.85);
+      background: rgba(0, 0, 0, 0.92);
       display: none;
       justify-content: center;
       align-items: center;
       z-index: 10010;
       overflow: hidden;
-      /* prevent horizontal scroll */
+      padding: 15px;
+      box-sizing: border-box;
     }
 
     .onboard-overlay.visible {
@@ -1307,28 +1474,49 @@
 
     .onboard-modal {
       width: 100%;
-      margin: 7px;
-      height: 95%;
-      border-radius: 10px;
-      background: #e6e6e6;
+      max-width: 420px;
+      margin: 0 auto;
+      height: auto;
+      max-height: 95vh;
+      border-radius: 15px;
+      background: #f0f0f0;
       color: #000;
       display: flex;
       flex-direction: column;
       align-items: center;
       overflow: hidden;
-      /* keep footer pinned */
-      padding: 15px;
+      padding: 20px;
       box-sizing: border-box;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      position: relative;
+    }
+    
+    /* Subtle background watermark like welcome popup */
+    .onboard-modal::before {
+      content: "";
+      position: absolute;
+      width: 110%;
+      height: 110%;
+      top: -5%;
+      left: -5%;
+      background-image: url('static/img/KRLOGO.png');
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-size: cover;
+      opacity: 0.02;
+      z-index: 0;
+      pointer-events: none;
     }
 
     .onboard-header {
       width: 100%;
-      max-width: 420px;
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 16px 12px 0 12px;
+      padding: 0 0 16px 0;
       position: relative;
+      z-index: 1;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
     }
 
     @media (max-width: 768px) {
@@ -1340,68 +1528,108 @@
     .onboard-back {
       background: none !important;
       border: none !important;
-      color: #000 !important;
-      font-size: 28px !important;
+      color: #333 !important;
+      font-size: 32px !important;
       cursor: pointer !important;
       padding: 0 6px !important;
       line-height: 1 !important;
       visibility: hidden;
+      transition: color 0.2s ease;
+    }
+    
+    .onboard-back:hover {
+      color: #0000ff !important;
     }
 
     .onboard-title {
       margin: 0;
       text-align: center;
       font-weight: bold;
+      font-size: 17px;
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
-      width: calc(100% - 24px);
+      width: calc(100% - 60px);
       pointer-events: none;
+      color: #000;
     }
 
     .onboard-step-title {
       font-weight: bold;
-      font-size: 18px;
+      font-size: 19px;
       text-align: center;
-      margin: 6px 0 2px 0;
+      margin: 12px 0 6px 0;
+      color: #000;
     }
 
     .onboard-body {
       width: 100%;
-      max-width: 420px;
-      /* padding: 10px 12px 20px 12px; */
       flex: 1;
-      /* take remaining height */
       overflow-y: auto;
-      /* scroll content, not footer */
       overflow-x: hidden;
-      /* prevent horizontal scroll */
+      padding: 16px 4px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    /* Smooth scrollbar styling for onboard body */
+    .onboard-body::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .onboard-body::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 3px;
+    }
+    
+    .onboard-body::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 255, 0.3);
+      border-radius: 3px;
+    }
+    
+    .onboard-body::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 255, 0.5);
     }
 
     .onboard-avatar {
-      width: 96px;
-      height: 96px;
+      width: 100px;
+      height: 100px;
       border-radius: 50%;
       object-fit: cover;
-      border: 0.5px solid #6b6b6b;
+      /* border: 0.5px solid #828282; */
       display: block;
-      margin: 10px auto;
+      margin: 16px auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 255, 0.15);
     }
 
     @media (min-width: 768px) {
       .onboard-avatar {
-        width: 80px;
-        height: 80px;
+        width: 100px;
+        height: 100px;
       }
     }
 
     .onboard-upload-btn {
       display: block;
-      margin: 6px auto 8px auto;
-      background: #00f;
+      margin: 6px auto 12px auto;
+      background: #0000ff;
+      color: white;
       font-size: 14px;
-      padding: 6px 12px;
-      border-radius: 20px;
+      font-weight: 600;
+      padding: 8px 18px;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    
+    .onboard-upload-btn:hover {
+      background: #0000cc;
+      transform: scale(1.02);
+    }
+    
+    .onboard-upload-btn:active {
+      transform: scale(0.98);
     }
 
     /* Ensure cropping modal overlays onboarding */
@@ -1411,90 +1639,152 @@
 
     .onboard-input {
       width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d0d0d0;
+      border-radius: 8px;
+      font-size: 15px;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: white;
+    }
+    
+    .onboard-input:focus {
+      outline: none;
+      border-color: #0000ff;
+      box-shadow: 0 0 0 3px rgba(0, 0, 255, 0.1);
     }
 
     .onboard-hint {
       font-size: 12px;
-      color: #6e6e6e;
-      margin-top: 4px;
+      color: #666;
+      margin-top: 6px;
+      line-height: 1.4;
     }
 
     .onboard-counter {
       font-size: 12px;
-      color: #6e6e6e;
+      color: #666;
       float: right;
+      margin-top: 4px;
     }
 
     .onboard-practices {
       display: flex;
       flex-wrap: wrap;
-      gap: 0 7px;
-      margin-top: 6px;
+      gap: 8px;
+      margin-top: 10px;
       font-size: 14px;
     }
 
     .onboard-footer {
       margin-top: auto;
-      background: #e6e6e6;
+      padding-top: 16px;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      background: #f0f0f0;
       width: 100%;
-      max-width: 420px;
+      position: relative;
+      z-index: 1;
     }
 
     .onboard-actions {
-      background: #e6e6e6;
+      background: transparent;
       width: 100%;
       display: flex;
-      gap: 10px;
+      gap: 12px;
       justify-content: space-between;
+      margin-bottom: 12px;
     }
 
     .onboard-next {
       flex: 1;
+      background: #0000ff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    
+    .onboard-next:hover:not(:disabled) {
+      background: #0000cc;
+      transform: scale(1.02);
+    }
+    
+    .onboard-next:active:not(:disabled) {
+      transform: scale(0.98);
     }
 
     .onboard-skip {
-      background: #999 !important;
+      background: #888 !important;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 50px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    
+    .onboard-skip:hover {
+      background: #666 !important;
     }
 
     .onboard-steps {
-      margin: 6px auto 12px auto;
+      margin: 0 auto 8px auto;
       display: flex;
-      gap: 6px;
+      gap: 8px;
       justify-content: center;
     }
 
     .onboard-dot {
-      width: 8px;
-      height: 8px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
-      background: #aaa;
+      background: #ccc;
+      transition: background-color 0.3s ease, transform 0.2s ease;
     }
 
     .onboard-dot.active {
       background: #0000ff;
+      transform: scale(1.2);
     }
 
     /* Disabled state for Continue button (steps 1-3) */
     #onboard-next:disabled {
-      background: #bbb;
-      color: #eee;
+      background: #ccc !important;
+      color: #888 !important;
       cursor: not-allowed;
+      opacity: 0.6;
     }
 
     /* Onboarding social input open-link button */
     .onboard-input-wrap {
       position: relative;
+      margin-top: 8px;
     }
 
     .onboard-input-wrap .onboard-input {
-      padding-right: 36px;
-      padding-left: 44px;
+      padding-right: 40px;
+      padding-left: 40px;
     }
-    .onboard-left-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; pointer-events: none; opacity: 0.85; }
+    
+    .onboard-left-icon { 
+      position: absolute; 
+      left: 12px; 
+      top: 50%; 
+      transform: translateY(-50%); 
+      width: 20px; 
+      height: 20px; 
+      pointer-events: none; 
+      opacity: 0.7;
+    }
 
     .onboard-open-btn {
       position: absolute;
-      right: 8px;
+      right: 10px;
       top: 50%;
       transform: translateY(-50%);
       background: none;
@@ -1507,18 +1797,21 @@
       align-items: center;
       justify-content: center;
       color: #0000ff !important;
-      opacity: 0.9;
+      opacity: 0.8;
       padding: 0 !important;
+      transition: opacity 0.2s ease, transform 0.1s ease;
     }
 
     .onboard-open-btn:hover:not(:disabled) {
       opacity: 1;
+      transform: translateY(-50%) scale(1.1);
     }
 
     .onboard-open-btn:disabled {
-      opacity: 0.4;
+      opacity: 0.3;
       cursor: not-allowed;
     }
+    
     /* Onboard: gentle shake animation for Continue button */
     @keyframes kr-shake {
       0% { transform: translateX(0); }
@@ -1530,6 +1823,7 @@
       90% { transform: translateX(3px); }
       100% { transform: translateX(0); }
     }
+    
     .shake-once {
       animation: kr-shake 0.45s ease;
     }
@@ -1541,49 +1835,101 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.7);
       display: none;
       justify-content: center;
       align-items: center;
       z-index: 10020; /* Above onboarding (10010) and help (10000) */
     }
-    .onboard-nudge-overlay.visible { display: flex; }
+    
+    .onboard-nudge-overlay.visible { 
+      display: flex; 
+    }
+    
     .onboard-nudge-content {
       background: #ffffff;
       color: #000000;
-      padding: 16px;
-      border-radius: 10px;
+      padding: 24px;
+      border-radius: 12px;
       width: 90%;
       max-width: 360px;
-      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
       position: relative;
     }
+    
     .onboard-nudge-title {
-      margin: 0 0 8px 0;
-      font-size: 16px;
+      margin: 0 0 12px 0;
+      font-size: 18px;
       font-weight: bold;
       text-align: left;
+      color: #000;
     }
+    
     .onboard-nudge-text {
-      margin: 0 0 12px 0;
-      font-size: 14px;
-      color: #333;
+      margin: 0 0 20px 0;
+      font-size: 15px;
+      color: #444;
+      line-height: 1.5;
     }
+    
     .onboard-nudge-actions {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       justify-content: flex-end;
     }
+    
+    .onboard-nudge-actions button {
+      padding: 10px 20px;
+      border-radius: 50px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    
+    .onboard-nudge-actions button:hover {
+      transform: scale(1.02);
+    }
+    
+    .onboard-nudge-actions button:active {
+      transform: scale(0.98);
+    }
+    
+    .onboard-nudge-actions .secondary {
+      background: #e0e0e0;
+      color: #333;
+    }
+    
+    .onboard-nudge-actions .secondary:hover {
+      background: #d0d0d0;
+    }
+    
+    .onboard-nudge-actions button:not(.secondary) {
+      background: #0000ff;
+      color: white;
+    }
+    
+    .onboard-nudge-actions button:not(.secondary):hover {
+      background: #0000cc;
+    }
+    
     .onboard-nudge-close {
       position: absolute;
-      top: 8px;
-      right: 10px;
+      top: 12px;
+      right: 12px;
       background: none;
       border: none;
-      font-size: 22px;
-      color: #666;
+      font-size: 24px;
+      color: #999;
       cursor: pointer;
       line-height: 1;
+      padding: 4px;
+      transition: color 0.2s ease;
+    }
+    
+    .onboard-nudge-close:hover {
+      color: #333;
     }
   </style>
 </head>
@@ -1776,6 +2122,7 @@
 
       <div class="modal" id="block-modal">
         <div class="modal-content">
+          <span class="modal-close" id="modal-close">&times;</span>
           <h3 id="modal-title">Add Link</h3>
 
           <div id="block-url-container">
@@ -1818,6 +2165,12 @@
                 <p class="input-feild-title-text" style="margin-top: 10px;">Description:</p>
                 <input type="text" id="block-description" placeholder="Block Description">
                 <p class="input-feild-title-text" style="margin-top: 10px;">Upload Block Image:</p>
+                <label for="block-img" class="file-upload-btn" id="file-upload-label">
+                  <svg class="file-upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                  </svg>
+                  <span id="file-upload-text">Choose Image</span>
+                </label>
                 <input type="file" id="block-img" accept="image/*">
                 <div id="image-preview" style="margin-top: 10px;"></div>
               </div>
@@ -1833,9 +2186,9 @@
 
 
 
-          <div style="margin-top: 20px; margin-bottom: 100px;">
-            <button id="save-block">Save Block</button>
-            <button class="secondary" id="cancel-block">Cancel</button>
+          <div class="modal-actions">
+            <button id="cancel-block">Cancel</button>
+            <button id="save-block">Save Changes</button>
           </div>
 
         </div>
@@ -1877,9 +2230,27 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
-  <script type="module" src="profile-firebase-setup.js"></script>
-  <script type="module" src="profile-app.js"></script>
-  <script src="mobile-nav.js"></script>
+  <script type="module" src="static/js/firebase/profile-firebase-setup.js"></script>
+  <script>
+    // Update file upload button text when file is selected
+    document.addEventListener('DOMContentLoaded', function() {
+      const fileInput = document.getElementById('block-img');
+      const fileUploadText = document.getElementById('file-upload-text');
+      
+      if (fileInput && fileUploadText) {
+        fileInput.addEventListener('change', function(e) {
+          if (this.files && this.files.length > 0) {
+            const fileName = this.files[0].name;
+            fileUploadText.textContent = fileName.length > 20 ? fileName.substring(0, 20) + '...' : fileName;
+          } else {
+            fileUploadText.textContent = 'Choose Image';
+          }
+        });
+      }
+    });
+  </script>
+  <script type="module" src="static/js/pages/profile-app.js"></script>
+  <script src="static/js/components/mobile-nav.js"></script>
 
   <!-- Onboarding Modal (appears for first-time/incomplete profiles) -->
   <div id="onboard-overlay" class="onboard-overlay" aria-modal="true" role="dialog">
@@ -1973,7 +2344,7 @@
           </ol>
           <p class="ready-text">Ready?</p>
           <button id="welcome-join-btn" class="popup-join-btn return-user">CREATE YOUR ACCOUNT &rarr;</button>
-          <p class="info-text2">By signing up with Google, you accept our <a href="terms.html" target="_blank"
+          <p class="info-text2">By signing up with Google, you accept our <a href="other/terms.html" target="_blank"
               class="popup-link">terms &amp; conditions</a>.</p>
         </div>
       </div>
